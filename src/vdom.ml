@@ -1,3 +1,30 @@
+module Internal = struct
+  let log_src = Logs.Src.create "vdom" ~doc:"vdom debugging"
+  module Log = (val Logs.src_log log_src : Logs.LOG)
+end
+
+open Internal
+
+let init_logging () =
+  (* setup console *)
+  if Logs.reporter () == Logs.nop_reporter then (
+    let console = Logs_browser.console_reporter () in
+    let reporter = { Logs.report = (fun src level ~over k user_msgf ->
+      console.Logs.report src level ~over k (fun console_msgf ->
+        user_msgf (fun ?header ?tags fmt ->
+          console_msgf ?header ?tags ("%s: @[" ^^ fmt ^^ "@]")
+            (Logs.Src.name src)
+        )
+      )
+    )} in
+    Logs.set_reporter reporter
+  )
+
+let set_log_level lvl =
+  init_logging ()
+  Logs.Src.set_level log_src (Some lvl);
+  Log.info (fun m -> m "Set log level to %s" (Logs.level_to_string (Some lvl)))
+
 module Attr_intf = struct
   module type S = sig
 
@@ -267,11 +294,7 @@ module Diff = struct
   let add_child ~parent (pos:child_position) (child:any_node) : unit =
     Dom.insertBefore parent child (match pos with
       | Append -> Js.null
-      | Before next ->
-        (* Printf.eprintf "Inserting element before nextSibling ...\n"; *)
-        (* let _parent = next##.parentNode |> force_opt in *)
-        (* if _parent <> (parent:>Dom.node Js.t) then failwith "Parent node mismatch!"; *)
-        Js.some next
+      | Before next -> Js.some next
     )
 
   let first_child (element:element) : any_node option =
@@ -344,7 +367,7 @@ module Diff = struct
     | `Target_node (node, parent) -> `Target_element (force_element_of_node node, parent)
 
   let replace_contents ~(target:[<target]) contents =
-    Printf.eprintf "replacing contents\n";
+    Log.debug (fun m -> m "replacing contents");
     let contents = (contents:>any_node) in
     match target with
       (* XXX combine these two patterns? *)
@@ -402,12 +425,14 @@ module Diff = struct
     let previous_remaining = ref previous in
     let force_dom_node idx : any_node = nth_child parent idx |> force_option in
 
-    Printf.eprintf "processing %d children (currently there are %d)\n"
+    Log.debug (fun m -> m "processing %d children (currently there are %d)"
       (List.length current)
-      (List.length previous);
+      (List.length previous)
+    );
 
     current |> List.iteri (fun idx current_child ->
-      Printf.eprintf "processing node %s at idx %d\n" (string_of_node current_child) idx;
+      Log.debug (fun m -> m "processing node %s at idx %d"
+        (string_of_node current_child) idx);
       match !previous_remaining with
         | [] -> add_child ~parent Append (render current_child)
         | previous_child :: previous_remaining_tail -> (
@@ -425,25 +450,27 @@ module Diff = struct
                   Anonymous (Element { e_name = previous_element_name ; _ }),
                   (Element { e_name = current_element_name ; _ })
                 ) when previous_element_name = current_element_name ->
-                Printf.eprintf "found matching element for %s\n" (string_of_raw current_child);
+                Log.debug (fun m ->
+                  m "found matching element for %s" (string_of_raw current_child));
                 Some (previous_child)
               | Anonymous (Text _), Text _ -> Some (previous_child)
               | _ ->
-                Printf.eprintf "Existing node is %s, which is not suitable for %s\n"
+                Log.debug (fun m -> m "Existing node is %s, which is not suitable for %s"
                   (string_of_node previous_child)
-                  (string_of_raw current_child);
+                  (string_of_raw current_child));
                 None
             )
           ) in
           match previous_matching_child with
             | None -> (* No match found; just insert it *)
-              Printf.eprintf "inserting before existing node at idx %d\n" idx;
+              Log.debug (fun m -> m "inserting before existing node at idx %d" idx);
               add_child ~parent (Before (force_dom_node idx)) (render current_child)
             | Some previous_matching_child when previous_matching_child = previous_child ->
               (* no reordering required *)
-              Printf.eprintf "node %s matched existing node %s\n"
+              Log.debug (fun m ->
+                m "node %s matched existing node %s"
                 (string_of_node current_child)
-                (string_of_node previous_matching_child);
+                (string_of_node previous_matching_child));
 
               previous_remaining := previous_remaining_tail;
               update_node previous_matching_child current_child (`Target_node (force_dom_node idx, parent))
@@ -457,16 +484,17 @@ module Diff = struct
                   if candidate = previous_matching_child
                   then tail
                   else (
-                    Printf.eprintf "removing node %s\n" (string_of_node candidate);
+                    Log.debug (fun m -> m "removing node %s" (string_of_node candidate));
                     remove (`Target_node (force_dom_node idx, parent));
                     remove_leading_nodes tail
                   )
               ) in
               previous_remaining := remove_leading_nodes !previous_remaining;
 
-              Printf.eprintf "updating node %s -> %s\n"
+              Log.debug (fun m ->
+                m "updating node %s -> %s"
                 (string_of_node previous_matching_child)
-                (string_of_node current_child);
+                (string_of_node current_child));
 
               update_node
                 previous_matching_child
@@ -480,7 +508,8 @@ module Diff = struct
       match expected, nth_child parent idx with
         | [], None -> ()
         | vdom_node::expected, Some node ->
-          Printf.eprintf "Removing node at idx %d (for %s)\n" idx (string_of_node vdom_node);
+          Log.debug (fun m -> m "Removing node at idx %d (for %s)"
+            idx (string_of_node vdom_node));
           remove (`Target_node (node, parent));
           remove_trailing_nodes expected idx
         | [], Some _ -> raise (Assertion_error ("Expected no more trailing DOM nodes at idx " ^ (string_of_int idx)))
@@ -491,10 +520,11 @@ module Diff = struct
             ^ (string_of_node node)
           ))
     ) in
-    Printf.eprintf "Removing %d trailing nodes after updating %d to %d\n"
+    Log.debug (fun m ->
+      m "Removing %d trailing nodes after updating %d to %d"
       (List.length !previous_remaining)
       (List.length previous)
-      (List.length current);
+      (List.length current));
     remove_trailing_nodes !previous_remaining (List.length current);
   )
 
@@ -505,9 +535,9 @@ module Diff = struct
       ({ e_name = previous_name; e_attrs = previous_attrs; e_children = previous_children } as previous)
       ({ e_name = current_name;  e_attrs = current_attrs;  e_children = current_children  } as current)
       (target:element_target) : unit =
-    Printf.eprintf "updade_element %s -> %s\n"
+    Log.debug (fun m -> m "updade_element %s -> %s"
       (string_of_element previous)
-      (string_of_element current);
+      (string_of_element current));
     if previous_name <> current_name then
       (* can't change node type, burn it to the ground *)
       replace_contents ~target (render_element current)
@@ -555,7 +585,7 @@ module Diff = struct
     add_child ~parent Append (render state)
 
   let update (previous:vdom) (current:vdom) (root:element) =
-    Printf.eprintf "processing new vdom %s\n" (string_of_node current);
+    Log.debug (fun m -> m "processing new vdom %s" (string_of_node current));
     update_node previous current (only_target_of_parent root)
 
 end

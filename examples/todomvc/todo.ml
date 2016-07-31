@@ -389,4 +389,6 @@ let main _ =
   let instance, run_thread = Ui.render ui main in
   run_thread
 
-let _ = Lwt.(Lwt_js_events.onload () >>= main)
+let _ =
+  Vdom.set_log_level Logs.Debug;
+  Lwt.(Lwt_js_events.onload () >>= main)

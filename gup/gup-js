@@ -7,7 +7,9 @@ fi
 base="${2%.js}"
 if [[ $base == *.min ]]; then
 	base="${base%.min}"
-	js_of_ocaml --opt 3  -o "$1" "$base.byte"
+	FLAGS="--opt 3"
 else
-	js_of_ocaml --debug-info --source-map-inline --sourcemap -o "$1" "$base.byte"
+	FLAGS="--debug-info --source-map-inline --sourcemap"
 fi
+gup -u "$base.byte"
+js_of_ocaml $FLAGS -o "$1" "$base.byte"

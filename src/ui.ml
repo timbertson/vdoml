@@ -1,3 +1,5 @@
+open Vdom.Internal
+
 module Component = struct
   type ('elt, 'a) instance_state = {
     state_val: 'a;
@@ -106,7 +108,7 @@ let render
       Lwt_stream.iter (fun message ->
         let new_state = component.update !state message in
         let new_view = view_fn new_state in
-        Printf.eprintf "Updating view\n";
+        Log.info (fun m -> m "Updating view");
         Diff.update !view new_view root;
         state := new_state;
         view := new_view;
@@ -114,7 +116,7 @@ let render
     with e -> (
       let backtrace = Printexc.get_backtrace () in
       let err = Printexc.to_string e in
-      prerr_string (err ^ "\n" ^ backtrace);
+      Log.err (fun m -> m "%s\n%s" err backtrace);
       (try
         (* Diff.remove_all root; *)
         Diff.prepend (
