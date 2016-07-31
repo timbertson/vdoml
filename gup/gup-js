@@ -5,11 +5,15 @@ fi
 
 # Build JS code from the OCaml bytecode
 base="${2%.js}"
-if [[ $base == *.min ]]; then
-	base="${base%.min}"
-	FLAGS="--opt 3"
+if [[ $2 == test/* ]]; then
+	FLAGS="+weak.js test/stub.js"
 else
-	FLAGS="--debug-info --source-map-inline --sourcemap"
+	if [[ $base == *.min ]]; then
+		base="${base%.min}"
+		FLAGS="--opt 3"
+	else
+		FLAGS="--debug-info --source-map-inline --sourcemap"
+	fi
 fi
 gup -u "$base.byte"
 js_of_ocaml $FLAGS -o "$1" "$base.byte"

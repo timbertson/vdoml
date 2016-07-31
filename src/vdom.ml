@@ -21,7 +21,7 @@ let init_logging () =
   )
 
 let set_log_level lvl =
-  init_logging ()
+  init_logging ();
   Logs.Src.set_level log_src (Some lvl);
   Log.info (fun m -> m "Set log level to %s" (Logs.level_to_string (Some lvl)))
 

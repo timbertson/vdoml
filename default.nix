@@ -2,7 +2,7 @@
 with pkgs;
 let
 	opam2nix = callPackage ./nix/opam2nix-packages.nix {};
-	opamDeps = ["eliom" "logs"];
+	opamDeps = ["eliom" "logs" "ppx_test" "ppx_assert" "sexplib"];
 	opamConfig = {
 		packages = opamDeps;
 		ocamlAttr = "ocaml_4_02";
