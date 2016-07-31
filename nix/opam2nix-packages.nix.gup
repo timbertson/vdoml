@@ -1,0 +1,4 @@
+#!bash -eu
+src="$HOME/dev/ocaml/opam2nix-packages/nix/release.nix"
+gup -u "$src"
+cp "$src" "$1"

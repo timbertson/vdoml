@@ -1,0 +1,13 @@
+#!bash -eu
+if test "${GUP_XTRACE:-0}" -eq 1; then
+	set -x
+fi
+
+# Build JS code from the OCaml bytecode
+base="${2%.js}"
+if [[ $base == *.min ]]; then
+	base="${base%.min}"
+	js_of_ocaml --opt 3  -o "$1" "$base.byte"
+else
+	js_of_ocaml --debug-info --source-map-inline --sourcemap -o "$1" "$base.byte"
+fi
