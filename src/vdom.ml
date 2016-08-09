@@ -98,6 +98,8 @@ module Attr : sig
     val list_to_attrs : pair list -> value AttrMap.t
     val eq : value -> value -> bool
     val canonicalize_pair : pair -> (string * value)
+    val string_of_attr_name : key -> string
+    val string_of_attr : pair -> string
 end = struct
   type key = AttrKey.t
   type value = 
@@ -111,6 +113,15 @@ end = struct
     | Attribute _, Property _
     | Property _, Attribute _
       -> false
+
+  let string_of_attr_name = function
+    | AttrKey.Attribute_name key -> "\"" ^ key ^ "\""
+    | AttrKey.Property_name key -> "[."^key^"]"
+
+  let string_of_attr = function
+    | AttrKey.Property_name _ as key, _ -> string_of_attr_name key
+    | AttrKey.Attribute_name key, Attribute value -> key ^ "=\"" ^ value ^ "\""
+    | _ -> failwith "impossible!"
 
   let attribute name value = AttrKey.Attribute_name name, Attribute value
   let property  name value = AttrKey.Property_name name, Property value
@@ -230,18 +241,8 @@ module Pure = struct
     | Anonymous of raw_node
     | Identified of (identity * raw_node)
 
-  (* TODO: move these into Attr module *)
-  let string_of_attr_name = let open Attr in function
-    | AttrKey.Attribute_name key -> "\"" ^ key ^ "\""
-    | AttrKey.Property_name key -> "[."^key^"]"
-
-  let string_of_attr = let open Attr in function
-    | AttrKey.Property_name _ as key, _ -> string_of_attr_name key
-    | AttrKey.Attribute_name key, Attribute value -> key ^ "=\"" ^ value ^ "\""
-    | _ -> failwith "impossible!"
-
   let string_of_element { e_attrs; e_children; e_name } =
-    let attrs = e_attrs |> AttrMap.bindings |> List.map (string_of_attr) |> String.concat " " in
+    let attrs = e_attrs |> AttrMap.bindings |> List.map (Attr.string_of_attr) |> String.concat " " in
     Printf.sprintf "<%s %s (%d children)>" e_name attrs (List.length e_children)
 
   let string_of_raw = function
@@ -410,7 +411,7 @@ module Diff = struct
       in
       if matches_existing_value then (
         (* skip it *)
-        Log.debug (fun m -> m "attr unchanged: %s" (string_of_attr (key, value)));
+        Log.debug (fun m -> m "attr unchanged: %s" (Attr.string_of_attr (key, value)));
         old_attrs := AttrMap.remove key !old_attrs;
         false
       ) else true
@@ -418,7 +419,7 @@ module Diff = struct
 
     (* any old_values that aren't identical in the new view *)
     !old_attrs |> AttrMap.iter (fun key _ ->
-      Log.debug (fun m -> m "removing old attr: %s" (string_of_attr_name key));
+      Log.debug (fun m -> m "removing old attr: %s" (Attr.string_of_attr_name key));
       remove_attr element key
     );
 
@@ -426,7 +427,7 @@ module Diff = struct
      * this last in case e.g. an attribute switches to a property, in which
      * case unsetting the old value might clobber the new one *)
     Log.debug (fun m ->
-      let attrs = new_values |> AttrMap.bindings |> List.map string_of_attr in
+      let attrs = new_values |> AttrMap.bindings |> List.map Attr.string_of_attr in
       m "setting new attrs: %s" (String.concat ", " attrs)
     );
     new_values |> AttrMap.iter (set_attr element)
