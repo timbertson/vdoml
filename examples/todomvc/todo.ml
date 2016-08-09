@@ -271,7 +271,10 @@ module App = struct
                 a_class ["toggle"];
                 a_input_type `Checkbox;
                 (* TODO is this something where lazy_n_ might help? *)
-                a_onclick (emitter (Modify (entry.id, Toggle_check)));
+                (* a_onclick (emitter (Modify (entry.id, Toggle_check))); *)
+                a_onclick (fun _evt ->
+                  Ui.emit instance (Modify (entry.id, Toggle_check));
+                  true);
               ]
             ) ();
             label ~a:[

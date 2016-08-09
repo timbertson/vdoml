@@ -5,8 +5,11 @@ if test "${GUP_XTRACE:-0}" -eq 1; then
 	OCAMLBUILD_FLAGS="-verbose 3"
 fi
 
-basedir="${2%/_build/*}"
-target_name="${2#*/_build/}"
+basedir="${2%_build/*}"
+target_name="${2#*_build/}"
+if test -z "$basedir"; then
+	basedir="."
+fi
 # don't build anything without a _tags file
 test -f "$basedir/_tags" || (echo "No tags file found in '$basedir'"; exit 1)
 pushd "$basedir" >/dev/null

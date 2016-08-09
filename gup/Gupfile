@@ -1,4 +1,4 @@
 ./gup-ocamlbuild:
-	**/_build/*.byte
+	**_build/*.byte
 ./gup-js:
-	**/_build/*.js
+	**_build/*.js

@@ -1,0 +1,3 @@
+#!bash -eu
+gup _build/main.js
+./run --test-verbose

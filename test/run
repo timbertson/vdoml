@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+var dom = require('jsdom').jsdom();
+var window = dom.defaultView;
+global.document = window.document;
+require('./_build/main');
