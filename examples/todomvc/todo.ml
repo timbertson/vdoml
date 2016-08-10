@@ -210,28 +210,18 @@ module App = struct
 
     let a_onenter fn =
       a_onkeydown (fun event ->
-        if event##.keyCode == 13 then fn () else true
+        if event##.keyCode == 13 then fn () else `Unhandled
       )
 
-    (* XXX canonicalize in UI ? *)
-    let onchange action = fun event -> (
-      (* Oh hell nope *)
-      let input = Js.Opt.get event##.currentTarget (fun () -> failwith "noinput") in
-      let input = Dom_html.CoerceTo.input input in
-      let input = Js.Opt.get input (fun () -> failwith "noinput") in
-      action (input##.value |> Js.to_string)
-    )
-
-
     let view_input instance =
-      let onchange = onchange (fun text ->
+      let onchange = (fun elem text ->
         print_endline ("changed to: " ^ text);
         Ui.emit instance (Update_field text);
-        true
+        `Unhandled
       ) in
       let submit = (fun _ ->
         Ui.emit instance Add;
-        false
+        `Handled
       ) in
     fun task ->
       header ~a: [a_class ["header"]] [
@@ -242,7 +232,7 @@ module App = struct
           a_autofocus `Autofocus;
           a_value task;
           a_name "newTodo";
-          a_oninput onchange;
+          Vdom.Attr.on_input onchange;
           a_onenter submit;
         ] ()
       ]
@@ -274,16 +264,11 @@ module App = struct
                 (* a_onclick (emitter (Modify (entry.id, Toggle_check))); *)
                 a_onclick (fun _evt ->
                   Ui.emit instance (Modify (entry.id, Toggle_check));
-                  true);
+                  `Unhandled);
               ]
             ) ();
             label ~a:[
-                Vdom.Attr.on "dblclick" (
-                  (* TODO: wildly inconsistent *)
-                  fun evt ->
-                    let (_:bool) = emitter (Modify (entry.id, Editing true)) () in
-                    ()
-                  )
+                Vdom.Attr.on "dblclick" (emitter (Modify (entry.id, Editing true)));
                 (* on_doubleclick (emitter (EditingEntry entry.id, true)) *)
               ] [ pcdata entry.name ];
             button
@@ -298,10 +283,9 @@ module App = struct
                 a_value entry.name;
                 a_name "title";
                 a_id ("todo-" ^ (string_of_int entry.id));
-                a_onchange (onchange (fun text ->
-                  Ui.emit instance (Modify (entry.id, Rename text));
-                  true
-                ));
+                Vdom.Attr.on_change (fun _elem text ->
+                  Ui.Handler.emit instance (Modify (entry.id, Rename text)) ()
+                );
                 (* TODO inconsistent *)
                 a_onblur (Ui.Handler.wrap cancel_editing);
                 a_onenter (cancel_editing ());
@@ -327,10 +311,17 @@ module App = struct
       | [] -> div []
       | entries -> (
         let all_completed = List.all Entry.is_completed entries in
-        let toggle_all completed = (fun _ ->
-          Ui.emit instance (Check_all completed);
-          false
+        let toggle_all = (fun _ ->
+          Ui.emit instance (Check_all (not all_completed));
+          (* No matter what the state before, the checkbox _should_ change to
+           * the opposite. So return `Unhandled *)
+          `Unhandled
         ) in
+        (* XXX how do we represent a handler whose identity is dependant only on
+         * `instance` and `all_completed`?
+         * That way we wouldn't have to keep reapplying `toggle_all` unless
+         * `all_completed` actually changed.
+         *)
         section ~a:[
           a_class ["main"];
         ] [
@@ -338,7 +329,7 @@ module App = struct
             a_class ["toggle-all"];
             a_input_type `Checkbox;
             a_name "toggle";
-            a_onclick (toggle_all (not all_completed));
+            a_onclick toggle_all;
           ]) ();
           label ~a:[
             a_for "toggle-all";

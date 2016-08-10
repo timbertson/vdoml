@@ -1,9 +1,21 @@
 module Internal = struct
   let log_src = Logs.Src.create "vdom" ~doc:"vdom debugging"
   module Log = (val Logs.src_log log_src : Logs.LOG)
+
+  class type biggest_event = object
+    inherit Dom_html.event
+    inherit Dom_html.mouseEvent
+    inherit Dom_html.keyboardEvent
+  end
 end
 
 open Internal
+
+type handler_response = [
+  | `Unhandled
+  | `Handled
+  | `Stop
+]
 
 let init_logging () =
   (* setup console *)
@@ -42,7 +54,7 @@ module Attr_intf = struct
 
     val on
       : string
-      -> ('e Dom.event Js.t -> unit)
+      -> (Dom_html.event Js.t -> handler_response)
       -> pair
 
     val class_    : string -> pair
@@ -51,31 +63,31 @@ module Attr_intf = struct
     val style     : (string * string) list -> pair
     val style_css : string -> pair
 
-    val on_focus  : (Dom_html.event Js.t -> unit) -> pair
-    val on_blur   : (Dom_html.event Js.t -> unit) -> pair
+    val on_focus  : (Dom_html.event Js.t -> handler_response) -> pair
+    val on_blur   : (Dom_html.event Js.t -> handler_response) -> pair
 
     (** [on_input] fires every time the input changes, e.g., whenever a key is pressed in
         the input field.  The current contents are returned as an OCaml string as a
         convenience *)
-    val on_input  : (Dom_html.inputElement Js.t -> string -> unit) -> pair
+    val on_input  : (Dom_html.inputElement Js.t -> string -> handler_response) -> pair
 
     (** [on_change] fires when the input is complete, e.g., when enter is pressed in the
         input field.  The current contents are returned as an OCaml string as a
         convenience *)
-    val on_change : (Dom_html.inputElement Js.t -> string -> unit) -> pair
+    val on_change : (Dom_html.inputElement Js.t -> string -> handler_response) -> pair
 
-    val on_click      : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mousemove  : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mouseup    : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mousedown  : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mouseenter : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mouseleave : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mouseover  : (Dom_html.mouseEvent Js.t -> unit) -> pair
-    val on_mouseout   : (Dom_html.mouseEvent Js.t -> unit) -> pair
+    val on_click      : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mousemove  : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mouseup    : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mousedown  : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mouseenter : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mouseleave : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mouseover  : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
+    val on_mouseout   : (Dom_html.mouseEvent Js.t -> handler_response) -> pair
 
-    val on_keyup    : (Dom_html.keyboardEvent Js.t -> unit) -> pair
-    val on_keypress : (Dom_html.keyboardEvent Js.t -> unit) -> pair
-    val on_keydown  : (Dom_html.keyboardEvent Js.t -> unit) -> pair
+    val on_keyup    : (Dom_html.keyboardEvent Js.t -> handler_response) -> pair
+    val on_keypress : (Dom_html.keyboardEvent Js.t -> handler_response) -> pair
+    val on_keydown  : (Dom_html.keyboardEvent Js.t -> handler_response) -> pair
   end
 
 
@@ -83,7 +95,6 @@ end
 
 module AttrKey = struct
   type t = Property_name of string | Attribute_name of string
-
   let compare : t -> t -> int = Pervasives.compare
 end
 module AttrMap = Map.Make(AttrKey)
@@ -94,12 +105,12 @@ module Attr : sig
       | Property of Js.Unsafe.any
       | Attribute of string
     include Attr_intf.S with type pair = key * value
-    val list_to_obj : pair list -> < > Js.t
     val list_to_attrs : pair list -> value AttrMap.t
     val eq : value -> value -> bool
     val canonicalize_pair : pair -> (string * value)
     val string_of_attr_name : key -> string
     val string_of_attr : pair -> string
+    val event_handler_attrib : string -> (biggest_event Js.t -> handler_response) -> pair
 end = struct
   type key = AttrKey.t
   type value = 
@@ -126,6 +137,15 @@ end = struct
   let attribute name value = AttrKey.Attribute_name name, Attribute value
   let property  name value = AttrKey.Property_name name, Property value
 
+  let event_handler_attrib name value =
+    let handler e =
+      match value e with
+        | `Unhandled -> ()
+        | `Handled -> Dom.preventDefault e
+        | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
+    in
+    property name (Js.Unsafe.inject handler)
+
   let class_ c = attribute "class" c
   let classes classes = class_ (String.concat " " classes)
 
@@ -134,9 +154,8 @@ end = struct
   let string_property name value =
     AttrKey.Property_name name, Property (Js.Unsafe.inject (Js.string value))
 
-  let on event (handler : ('b #Dom.event as 'a) Js.t -> unit) : pair =
-    let f e = handler e; Js._true in
-    property ("on" ^ event) (Js.Unsafe.inject (Dom.handler f))
+  let on event (handler : ('b #Dom.event as 'a) Js.t -> handler_response) : pair =
+    event_handler_attrib ("on" ^ event) handler
 
   let style props =
     let obj = Js.Unsafe.obj [||] in
@@ -166,11 +185,17 @@ end = struct
 
   let on_input_event event handler =
     on event (fun ev ->
+      let rv = ref None in
       Js.Opt.iter (ev##.target) (fun target ->
         Js.Opt.iter (Dom_html.CoerceTo.input target) (fun input ->
           let text = Js.to_string (input##.value) in
-          handler input text
-        )))
+          rv := Some (handler input text)
+        )
+      );
+      match !rv with
+        | Some rv -> rv
+        | None -> `Unhandled
+    )
 
   let on_change = on_input_event "change"
   let on_input  = on_input_event "input"
@@ -181,27 +206,6 @@ end = struct
     | AttrKey.Property_name _, Attribute _
     | AttrKey.Attribute_name _, Property _
       -> assert false
-
-  let list_to_obj attrs : < > Js.t =
-    let attrs_obj = Js.Unsafe.obj [||] in
-    let open AttrKey in
-    List.iter (function
-      | Property_name name, Property (value) ->
-        Js.Unsafe.set attrs_obj
-          (Js.string name)
-          value
-      | Attribute_name name, Attribute (value) ->
-        if not (Js.Optdef.test attrs_obj##.attributes)
-        then attrs_obj##.attributes := Js.Unsafe.obj [||];
-        Js.Unsafe.set (attrs_obj##.attributes)
-          (Js.string name)
-          value
-      | Property_name _, Attribute _
-      | Attribute_name _, Property _
-        -> assert false
-      )
-      attrs;
-    attrs_obj
 
   let list_to_attrs (attrs: pair list) : value AttrMap.t =
     List.fold_left (fun attrs (name, prop) ->
@@ -331,7 +335,7 @@ module Diff = struct
     match key with
       | Attribute_name key -> element##removeAttribute (Js.string key)
       (* NOTE: delete not sufficient, won't e.g. disable a checkbox *)
-      | Property_name key -> _set_attr element (key, Property (Js.Unsafe.inject Js.undefined))
+      | Property_name key -> _set_attr element (key, Attr.Property (Js.Unsafe.inject Js.undefined))
 
 
   (* vdom <-> dom functions *)
@@ -649,25 +653,16 @@ end
 
 (* Below basically nicked from vdom *)
 
-module type XML =
-  Xml_sigs.T
-  with type uri = string
-   (* TODO: use a proper response instead of bool. *)
-    (* and type handler_result = [ *)
-    (*   | `Unhandled (* allow default, allow propagation *) *)
-    (*   | `Handled (* prevent default, allow propagation *) *)
-    (*  *)
-    (*   (* less widely used *) *)
-    (*   | `Cancel (* prevent default, stop propagation *) *)
-    (*   | `Stop_propagation (* allow default, stop propagation *) *)
-    (* ] *)
-    and type event_handler = Dom_html.event Js.t -> bool
-    and type mouse_event_handler = Dom_html.mouseEvent Js.t -> bool
-    and type keyboard_event_handler = Dom_html.keyboardEvent Js.t -> bool
+module type XML = sig
+  include Xml_sigs.T with
+    type uri = string
+    and type event_handler = Dom_html.event Js.t -> handler_response
+    and type mouse_event_handler = Dom_html.mouseEvent Js.t -> handler_response
+    and type keyboard_event_handler = Dom_html.keyboardEvent Js.t -> handler_response
     and type elt = Node.t
+end
 
 module Xml = struct
-
   module W = Xml_wrap.NoWrap
   type 'a wrap = 'a
   type 'a list_wrap = 'a list
@@ -677,16 +672,10 @@ module Xml = struct
   let string_of_uri s = s
   type aname = string
 
-  class type biggest_event = object
-    inherit Dom_html.event
-    inherit Dom_html.mouseEvent
-    inherit Dom_html.keyboardEvent
-  end
-
-  type biggest_event_handler = biggest_event Js.t -> bool
-  type event_handler = Dom_html.event Js.t -> bool
-  type mouse_event_handler = Dom_html.mouseEvent Js.t -> bool
-  type keyboard_event_handler = Dom_html.keyboardEvent Js.t -> bool
+  type biggest_event_handler = biggest_event Js.t -> handler_response
+  type event_handler = Dom_html.event Js.t -> handler_response
+  type mouse_event_handler = Dom_html.mouseEvent Js.t -> handler_response
+  type keyboard_event_handler = Dom_html.keyboardEvent Js.t -> handler_response
   type attrib = Attr.pair
 
   let attr name value =
@@ -696,20 +685,17 @@ module Xml = struct
     | name ->
       Attr.attribute name value
 
-  let attr_ev name value =
-    Attr.property name (Js.Unsafe.inject (fun ev -> Js.bool (value ev)))
-
   let float_attrib name value : attrib = attr name (string_of_float value)
   let int_attrib name value = attr name (string_of_int value)
   let string_attrib name value = attr name value
   let space_sep_attrib name values = attr name (String.concat " " values)
   let comma_sep_attrib name values = attr name (String.concat "," values)
   let event_handler_attrib name (value : event_handler) =
-    attr_ev name (value :> (biggest_event_handler))
+    Attr.event_handler_attrib name (value :> (biggest_event_handler))
   let mouse_event_handler_attrib name (value : mouse_event_handler) =
-    attr_ev name (value :> (biggest_event_handler))
+    Attr.event_handler_attrib name (value :> (biggest_event_handler))
   let keyboard_event_handler_attrib name (value : keyboard_event_handler) =
-    attr_ev name (value :> (biggest_event_handler))
+    Attr.event_handler_attrib name (value :> (biggest_event_handler))
   let uri_attrib name value = attr name value
   let uris_attrib name values = attr name (String.concat " " values)
 

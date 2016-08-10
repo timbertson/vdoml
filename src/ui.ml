@@ -221,8 +221,8 @@ let child ~view ?message ?id instance =
   update_and_view child
 
 module Handler = struct
-  let wrap fn = fun _ -> fn (); false
-  let emit instance message : 'a -> bool = (fun _ -> emit instance message; false)
+  let wrap fn : 'a -> Vdom.handler_response = fun _ -> fn (); `Handled
+  let emit instance message : 'a -> Vdom.handler_response = (fun _ -> emit instance message; `Handled)
 end
 
 let onload fn =
@@ -246,19 +246,3 @@ let main ?log ?root ?background ui () =
   let instance, run_thread = render ui (root ()) in
   Lwt.join [ background (); run_thread ]
 
-
-(* TODO: make a way of caching previous values - e.g.
- * I have a list of rendered `foo` views which are generated from
- * `foo` models. Allow me to maintain a cache pre view-render which is
- * flushed after use. Something like:
- 
-module UiCache = Ui.Cache(Model)
-let cache = UiCache.init in
-fun items -> UiCache.consume cache (fun update ->
-  items |> List.map (fun item ->
-  update item (fun item -> "view_item")
-  (* ^ returns either cached or fn () *)
-  )
-)
-
- *)
