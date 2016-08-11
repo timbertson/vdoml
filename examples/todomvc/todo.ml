@@ -310,18 +310,12 @@ module App = struct
     function
       | [] -> div []
       | entries -> (
-        let all_completed = List.all Entry.is_completed entries in
-        let toggle_all = (fun _ ->
-          Ui.emit instance (Check_all (not all_completed));
-          (* No matter what the state before, the checkbox _should_ change to
-           * the opposite. So return `Unhandled *)
-          `Unhandled
+        let toggle_all = Curry.init (fun all_completed ->
+          fun _ ->
+            Ui.emit instance (Check_all (not all_completed));
+            `Unhandled
         ) in
-        (* XXX how do we represent a handler whose identity is dependant only on
-         * `instance` and `all_completed`?
-         * That way we wouldn't have to keep reapplying `toggle_all` unless
-         * `all_completed` actually changed.
-         *)
+        let all_completed = List.all Entry.is_completed entries in
         section ~a:[
           a_class ["main"];
         ] [
@@ -329,7 +323,7 @@ module App = struct
             a_class ["toggle-all"];
             a_input_type `Checkbox;
             a_name "toggle";
-            a_onclick toggle_all;
+            a_onclick (Curry.apply toggle_all all_completed);
           ]) ();
           label ~a:[
             a_for "toggle-all";
