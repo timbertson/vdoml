@@ -245,7 +245,7 @@ module App = struct
       let open Entry in
       let emitter signal = Ui.Handler.emit instance signal in
       let toggle_class name value = if value then [name] else [] in
-      let toggle attr value = if value then [attr] else [] in
+      let if_attr a = function true -> a | false -> None in
       let cancel_editing = Curry.init (fun id ->
         Ui.Handler.emit instance (Modify (id, Editing false))
       ) in
@@ -269,8 +269,8 @@ module App = struct
         [
           div ~a:[ a_class ["view"] ] [
             input ~a:(
-              toggle (a_checked `Checked) entry.completed @
               [
+                if_attr (a_checked `Checked) entry.completed;
                 a_class ["toggle"];
                 a_input_type `Checkbox;
                 a_onclick (toggle_check entry.id);

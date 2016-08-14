@@ -22,6 +22,7 @@ module Attr = struct
     | Property of Js.Unsafe.any
     | Attribute of string
   type t = key * value
+  type optional = t option
 
   let eq a b = match (a,b) with
     | Property a, Property b -> a == b (* pysical equality for JS any, because I don't trust JS equality *)
@@ -39,8 +40,8 @@ module Attr = struct
     | AttrKey.Attribute_name key, Attribute value -> key ^ "=\"" ^ value ^ "\""
     | _ -> failwith "impossible!"
 
-  let attribute name value = AttrKey.Attribute_name name, Attribute value
-  let property  name value = AttrKey.Property_name name, Property value
+  let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
+  let property  name value = Some (AttrKey.Property_name name, Property value)
 
   let event_handler_attrib name value =
     let handler e =
@@ -52,7 +53,7 @@ module Attr = struct
     property name (Js.Unsafe.inject handler)
 
   let string_property name value =
-    AttrKey.Property_name name, Property (Js.Unsafe.inject (Js.string value))
+    Some (AttrKey.Property_name name, Property (Js.Unsafe.inject (Js.string value)))
 
   let canonicalize_pair : t -> (string * value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
@@ -61,9 +62,10 @@ module Attr = struct
     | AttrKey.Attribute_name _, Property _
       -> assert false
 
-  let list_to_attrs (attrs: t list) : value AttrMap.t =
-    List.fold_left (fun attrs (name, prop) ->
-      AttrMap.add name prop attrs
+  let list_to_attrs (attrs: optional list) : value AttrMap.t =
+    List.fold_left (fun attrs -> function
+      | Some (name, prop) -> AttrMap.add name prop attrs
+      | None -> attrs
     ) AttrMap.empty attrs
 
   (* TODO: support classList rather than a flat class string *)

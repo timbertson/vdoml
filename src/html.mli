@@ -1,5 +1,5 @@
 type vdom_node = Vdom_.Vdom.node
-type vdom_attr = Attr_.Attr.t
+type vdom_attr = Attr_.Attr.optional
 
 type event_response = [
   | `Unhandled
