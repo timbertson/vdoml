@@ -23,6 +23,7 @@ include Html5_sigs.T with
 
 val a_on : string -> (Dom_html.event Js.t -> event_response) -> vdom_attr
 val s_class : string -> vdom_attr
+val text : string -> 'a elt
 
 module Input : sig
   type event

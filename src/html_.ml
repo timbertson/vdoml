@@ -140,6 +140,7 @@ let a_on event (handler : (Dom_html.event) Js.t -> event_response) : Attr.option
   Attr.event_handler_attrib ("on" ^ event) (handler:>(biggest_event Js.t -> event_response))
 
 let s_class c = Attr.attribute "class" c
+let text = Html.pcdata
 
 module Input = struct
   type event = {
