@@ -243,19 +243,24 @@ module App = struct
       let open Html in
       let open Msg in
       let open Entry in
-    fun entry ->
       let emitter signal = Ui.Handler.emit instance signal in
       let toggle_class name value = if value then [name] else [] in
       let toggle attr value = if value then [attr] else [] in
-      (* TODO: Curry *)
-      let cancel_editing = Ui.Handler.emit instance (
-        Modify (entry.id, Editing false)) in
-      let rename = fun e ->
-        let text = Input.contents e in
-        Ui.emit instance (Modify (entry.id, Rename text));
-        `Unhandled
-      in
-
+      let cancel_editing = Curry.init (fun id ->
+        Ui.Handler.emit instance (Modify (id, Editing false))
+      ) in
+      let rename = Curry.init (fun id ->
+        fun e ->
+          let text = Input.contents e in
+          Ui.emit instance (Modify (id, Rename text));
+          `Unhandled
+      ) in
+      let toggle_check = Curry.init (fun id ->
+        fun _evt ->
+          Ui.emit instance (Modify (id, Toggle_check));
+          `Unhandled
+      ) in
+    fun entry ->
       li
         ~a:[ a_class (
           (toggle_class "completed" entry.completed) @
@@ -268,16 +273,11 @@ module App = struct
               [
                 a_class ["toggle"];
                 a_input_type `Checkbox;
-                (* TODO is this something where lazy_n_ might help? *)
-                (* a_onclick (emitter (Modify (entry.id, Toggle_check))); *)
-                a_onclick (fun _evt ->
-                  Ui.emit instance (Modify (entry.id, Toggle_check));
-                  `Unhandled);
+                a_onclick (toggle_check entry.id);
               ]
             ) ();
             label ~a:[
                 a_on "dblclick" (emitter (Modify (entry.id, Editing true)));
-                (* on_doubleclick (emitter (EditingEntry entry.id, true)) *)
               ] [ pcdata entry.name ];
             button
               ~a:[
@@ -291,9 +291,9 @@ module App = struct
                 a_value entry.name;
                 a_name "title";
                 a_id ("todo-" ^ (string_of_int entry.id));
-                Input.a_onchange rename;
-                a_onblur cancel_editing;
-                a_onreturnkey cancel_editing;
+                Input.a_onchange (rename entry.id);
+                a_onblur (cancel_editing entry.id);
+                a_onreturnkey (cancel_editing entry.id);
               ] ()
       ]
 
@@ -328,7 +328,7 @@ module App = struct
             a_class ["toggle-all"];
             a_input_type `Checkbox;
             a_name "toggle";
-            a_onclick (Curry.apply toggle_all all_completed);
+            a_onclick (toggle_all all_completed);
           ]) ();
           label ~a:[
             a_for "toggle-all";
