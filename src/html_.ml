@@ -2,6 +2,7 @@ open Vdom_
 open Attr_
 
 type vdom_node = Vdom.node
+type vdom_attr = Attr.t
 type event_response = Attr_.event_response
 type event_handler = Dom_html.event Js.t -> event_response
 type mouse_event_handler = Dom_html.mouseEvent Js.t -> event_response
@@ -14,13 +15,13 @@ module Tyxml_impl = struct
 
     val create
       : string
-      -> Attr.pair list
+      -> Attr.t list
       -> t list
       -> t
 
     val svg
       :  string
-      -> Attr.pair list
+      -> Attr.t list
       -> t list
       -> t
 
@@ -31,14 +32,14 @@ module Tyxml_impl = struct
     let text (s : string) =
       Anonymous (Text s)
 
-    let create tag (attrs : Attr.pair list) children =
+    let create tag (attrs : Attr.t list) children =
       Anonymous (Element {
         e_name = tag;
         e_attrs = Attr.list_to_attrs attrs;
         e_children = children
       })
 
-    let svg tag (attrs : Attr.pair list) children =
+    let svg tag (attrs : Attr.t list) children =
       Anonymous (Element {
         e_name = tag;
         e_attrs = Attr.list_to_attrs attrs;
@@ -71,7 +72,7 @@ module Tyxml_impl = struct
     type event_handler = Dom_html.event Js.t -> event_response
     type mouse_event_handler = Dom_html.mouseEvent Js.t -> event_response
     type keyboard_event_handler = Dom_html.keyboardEvent Js.t -> event_response
-    type attrib = Attr.pair
+    type attrib = Attr.t
 
     let attr name value =
       match name with
@@ -133,3 +134,42 @@ end
 
 module Svg = Svg_f.Make(Tyxml_impl.Xml_Svg)
 module Html = Html5_f.Make(Tyxml_impl.Xml)(Svg)
+
+(* additional html utils not provided by tyxml *)
+let a_on event (handler : (Dom_html.event) Js.t -> event_response) : Attr.t =
+  Attr.event_handler_attrib ("on" ^ event) (handler:>(biggest_event Js.t -> event_response))
+
+let s_class c = Attr.attribute "class" c
+
+module Input = struct
+  type event = {
+    event : Dom_html.event Js.t;
+    element : Dom_html.inputElement Js.t;
+    contents: string;
+  }
+
+  let event e = e.event
+  let element e = e.element
+  let contents e = e.contents
+
+  let a_on event (handler: event -> event_response) =
+    a_on event (fun ev ->
+      let rv = ref None in
+      Js.Opt.iter (ev##.target) (fun target ->
+        Js.Opt.iter (Dom_html.CoerceTo.input target) (fun input ->
+          let arg = {
+            event = ev;
+            element = input;
+            contents = Js.to_string (input##.value);
+          } in
+          rv := Some (handler arg)
+        )
+      );
+      match !rv with
+        | Some rv -> rv
+        | None -> `Unhandled
+    )
+
+  let a_oninput = a_on "change"
+  let a_onchange  = a_on "input"
+end

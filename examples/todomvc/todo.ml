@@ -1,9 +1,4 @@
 (* Utils *)
-open Vdoml
-
-(* TODO: remove this *)
-open Attr_
-
 module StringMap = Map.Make(String)
 module List = struct
   include List
@@ -92,6 +87,7 @@ module Msg = struct
     | Set_visibility of Visibility.t
 end
 
+open Vdoml
 module Controls = struct
   open Html
 
@@ -213,13 +209,14 @@ module App = struct
     open Html
     open Msg
 
-    let a_onreturnkey fn =
+    let a_onreturnkey (fn : ('b #Dom.event as 'a) Js.t -> event_response) =
       a_onkeydown (fun event ->
         if event##.keyCode == 13 then fn (event :> Dom_html.event Js.t) else `Unhandled
       )
 
     let view_input instance =
-      let onchange = (fun elem text ->
+      let onchange = (fun evt ->
+        let text = Input.contents evt in
         print_endline ("changed to: " ^ text);
         Ui.emit instance (Update_field text);
         `Unhandled
@@ -237,7 +234,7 @@ module App = struct
           a_autofocus `Autofocus;
           a_value task;
           a_name "newTodo";
-          Attr.on_input onchange;
+          Input.a_oninput onchange;
           a_onreturnkey submit;
         ] ()
       ]
@@ -253,6 +250,11 @@ module App = struct
       (* TODO: Curry *)
       let cancel_editing = Ui.Handler.emit instance (
         Modify (entry.id, Editing false)) in
+      let rename = fun e ->
+        let text = Input.contents e in
+        Ui.emit instance (Modify (entry.id, Rename text));
+        `Unhandled
+      in
 
       li
         ~a:[ a_class (
@@ -274,7 +276,7 @@ module App = struct
               ]
             ) ();
             label ~a:[
-                Attr.on "dblclick" (emitter (Modify (entry.id, Editing true)));
+                a_on "dblclick" (emitter (Modify (entry.id, Editing true)));
                 (* on_doubleclick (emitter (EditingEntry entry.id, true)) *)
               ] [ pcdata entry.name ];
             button
@@ -289,9 +291,7 @@ module App = struct
                 a_value entry.name;
                 a_name "title";
                 a_id ("todo-" ^ (string_of_int entry.id));
-                Attr.on_change (fun _elem text ->
-                  Ui.Handler.emit instance (Modify (entry.id, Rename text)) ()
-                );
+                Input.a_onchange rename;
                 a_onblur cancel_editing;
                 a_onreturnkey cancel_editing;
               ] ()
