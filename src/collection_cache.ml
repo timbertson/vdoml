@@ -17,7 +17,14 @@ module Child_list : COLLECTION = struct
     with Not_found -> None
 end
 
-module Make(Collection:COLLECTION) = struct
+module type S = sig
+  type ('k, 'v) state
+  val init : unit -> ('k, 'v) state
+  type ('k, 'v) get_or_create = 'k -> (unit -> 'v) -> 'v
+  val use : ('k, 'v) state -> (('k, 'v) get_or_create -> 'ret) -> 'ret
+end
+
+module Make(Collection:COLLECTION) : S = struct
   type ('k, 'v) state = {
     active : ('k, 'v) Collection.t ref;
     next : ('k, 'v) Collection.t ref;
@@ -28,8 +35,10 @@ module Make(Collection:COLLECTION) = struct
     next = ref Collection.empty;
   }
 
+  type ('k, 'v) get_or_create = 'k -> (unit -> 'v) -> 'v
+
   let use state =
-      let get id fn =
+      let get : ('k, 'v) get_or_create = fun id fn ->
         let found = match (Collection.find id !(state.active)) with
           | None -> fn ()
           | Some cached -> cached

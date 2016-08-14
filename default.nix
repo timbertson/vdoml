@@ -50,7 +50,7 @@ let
 	};
 in
 stdenv.mkDerivation {
-	name = "react-test";
+	name = "vdoml";
 	passthru = {
 		opamDeps = opam2nix.buildPackageSet opamConfig;
 		repo = opam2nix.buildNixRepo ./opam;

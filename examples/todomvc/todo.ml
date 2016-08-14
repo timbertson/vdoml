@@ -1,4 +1,9 @@
 (* Utils *)
+open Vdoml
+
+(* TODO: remove this *)
+open Attr_
+
 module StringMap = Map.Make(String)
 module List = struct
   include List
@@ -88,7 +93,7 @@ module Msg = struct
 end
 
 module Controls = struct
-  open Vdom.Html
+  open Html
 
   let count count =
     let suffix = if count = 1 then "item" else "items" in
@@ -205,12 +210,12 @@ module App = struct
     | Set_visibility vis -> { model with visibility = vis }
 
   module View = struct
-    open Vdom.Html
+    open Html
     open Msg
 
-    let a_onenter fn =
+    let a_onreturnkey fn =
       a_onkeydown (fun event ->
-        if event##.keyCode == 13 then fn () else `Unhandled
+        if event##.keyCode == 13 then fn (event :> Dom_html.event Js.t) else `Unhandled
       )
 
     let view_input instance =
@@ -232,20 +237,21 @@ module App = struct
           a_autofocus `Autofocus;
           a_value task;
           a_name "newTodo";
-          Vdom.Attr.on_input onchange;
-          a_onenter submit;
+          Attr.on_input onchange;
+          a_onreturnkey submit;
         ] ()
       ]
 
     let view_entry instance =
-      let open Vdom.Html in
+      let open Html in
       let open Msg in
       let open Entry in
     fun entry ->
       let emitter signal = Ui.Handler.emit instance signal in
       let toggle_class name value = if value then [name] else [] in
       let toggle attr value = if value then [attr] else [] in
-      let cancel_editing = fun () -> Ui.Handler.emit instance (
+      (* TODO: Curry *)
+      let cancel_editing = Ui.Handler.emit instance (
         Modify (entry.id, Editing false)) in
 
       li
@@ -268,7 +274,7 @@ module App = struct
               ]
             ) ();
             label ~a:[
-                Vdom.Attr.on "dblclick" (emitter (Modify (entry.id, Editing true)));
+                Attr.on "dblclick" (emitter (Modify (entry.id, Editing true)));
                 (* on_doubleclick (emitter (EditingEntry entry.id, true)) *)
               ] [ pcdata entry.name ];
             button
@@ -283,18 +289,17 @@ module App = struct
                 a_value entry.name;
                 a_name "title";
                 a_id ("todo-" ^ (string_of_int entry.id));
-                Vdom.Attr.on_change (fun _elem text ->
+                Attr.on_change (fun _elem text ->
                   Ui.Handler.emit instance (Modify (entry.id, Rename text)) ()
                 );
-                (* TODO inconsistent *)
-                a_onblur (Ui.Handler.wrap cancel_editing);
-                a_onenter (cancel_editing ());
+                a_onblur cancel_editing;
+                a_onreturnkey cancel_editing;
               ] ()
       ]
 
 
     let view_entries instance =
-      let view_entries = Ui.children ~view:view_entry
+      let view_entries = Ui.collection ~view:view_entry
         ~id:(fun state -> `Int state.Entry.id)
         instance
       in
@@ -366,17 +371,10 @@ module App = struct
   let build state = Ui.component ~update ~view:View.view (default state)
 end
 
-
-let main _ =
-  let doc = Dom_html.document in
-  let main =
-    Js.Opt.get (doc##getElementById (Js.string "todomvc"))
-      (fun () -> assert false)
+let () =
+  let root () =
+    let doc = Dom_html.document in
+    Js.Opt.get (doc##getElementById (Js.string "todomvc")) (fun () -> assert false)
   in
   let ui = App.build None in
-  let instance, run_thread = Ui.render ui main in
-  run_thread
-
-let _ =
-  Vdom.set_log_level Logs.Debug;
-  Lwt.(Lwt_js_events.onload () >>= main)
+  Ui.onload (Ui.main ~log:Logs.Debug ~root ui)
