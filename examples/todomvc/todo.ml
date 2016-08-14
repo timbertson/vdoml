@@ -372,9 +372,9 @@ module App = struct
 end
 
 let () =
-  let root () =
-    let doc = Dom_html.document in
-    Js.Opt.get (doc##getElementById (Js.string "todomvc")) (fun () -> assert false)
+  let root () = Js.Opt.get
+    (Dom_html.document##getElementById (Js.string "todomvc"))
+    (fun () -> assert false)
   in
   let ui = App.build None in
   Ui.onload (Ui.main ~log:Logs.Debug ~root ui)
