@@ -57,7 +57,7 @@ module Diff = struct
       | key, Attribute value ->
           element##(setAttribute (Js.string key) (Js.string value))
       | key, Property value ->
-          Js.Unsafe.set element (Js.string key) value
+          Js.Unsafe.set element (Js.string key) (Attr.js_of_property value)
 
   let set_attr (element:element) (key:AttrKey.t) (value:Attr.value) : unit =
     _set_attr element (Attr.canonicalize_pair (key, value))
@@ -67,8 +67,7 @@ module Diff = struct
     match key with
       | Attribute_name key -> element##removeAttribute (Js.string key)
       (* NOTE: delete not sufficient, won't e.g. disable a checkbox *)
-      | Property_name key -> _set_attr element (key, Attr.Property (Js.Unsafe.inject Js.undefined))
-
+      | Property_name key -> Js.Unsafe.set element (Js.string key) (Js.undefined)
 
   (* vdom <-> dom functions *)
 

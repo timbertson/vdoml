@@ -77,7 +77,7 @@ module Tyxml_impl = struct
     let attr name value =
       match name with
       | "value" | "checked" | "selected" ->
-        Attr.property name (Js.Unsafe.inject (Js.string value))
+        Attr.string_property name value
       | name ->
         Attr.attribute name value
 

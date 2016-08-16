@@ -16,6 +16,9 @@ module List = struct
       if fn item then all fn remaining else false
 end
 
+let log_src = Logs.Src.create "todo"
+module Log = (val Logs.src_log log_src)
+
 (* Model *)
 module Entry = struct
   type id = int
@@ -119,17 +122,18 @@ module Controls = struct
           |> List.map (fun view -> view current)
           |> List.intersperse (pcdata " ")
     in
-  fun visibility ->
+  Curry.init (fun visibility ->
     ul ~a:[ a_class ["filters"] ] (visibility_buttons visibility)
+  )
 
   let clear_completed instance = 
     let clear = Ui.Handler.emit instance Msg.Delete_complete in
     function
       | 0 ->
-        print_endline ("completed: 0");
+        Log.info (fun m -> m "completed: 0");
         span []
       | num_complete ->
-        print_endline ("completed: SOME");
+        Log.info (fun m -> m "completed: %d" num_complete);
         button ~a:[
           a_class ["clear-completed"];
           a_onclick clear;
@@ -217,7 +221,7 @@ module App = struct
     let view_input instance =
       let onchange = (fun evt ->
         let text = Input.contents evt in
-        print_endline ("changed to: " ^ text);
+        Log.info(fun m -> m "input changed to: %s" text);
         Ui.emit instance (Update_field text);
         `Unhandled
       ) in
@@ -260,6 +264,8 @@ module App = struct
           Ui.emit instance (Modify (id, Toggle_check));
           `Unhandled
       ) in
+      let delete = Curry.init (fun id -> emitter (Delete id)) in
+      let modify = Curry.init (fun id -> emitter (Modify (id, Editing true))) in
     fun entry ->
       li
         ~a:[ a_class (
@@ -277,12 +283,12 @@ module App = struct
               ]
             ) ();
             label ~a:[
-                a_on "dblclick" (emitter (Modify (entry.id, Editing true)));
+                a_on "dblclick" (modify entry.id);
               ] [ pcdata entry.name ];
             button
               ~a:[
                 a_class ["destroy"];
-                a_onclick (emitter (Delete entry.id))
+                a_onclick (delete entry.id);
               ] []
           ];
           input
@@ -372,6 +378,7 @@ module App = struct
 end
 
 let () =
+  Logs.(Src.set_level log_src (Some Info));
   let root () = Js.Opt.get
     (Dom_html.document##getElementById (Js.string "todomvc"))
     (fun () -> assert false)

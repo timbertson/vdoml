@@ -18,14 +18,18 @@ module AttrMap = Map.Make(AttrKey)
 
 module Attr = struct
   type key = AttrKey.t
+  type property =
+    | Event_handler of (biggest_event Js.t -> event_response)
+    | String_prop of string
+
   type value = 
-    | Property of Js.Unsafe.any
+    | Property of property
     | Attribute of string
   type t = key * value
   type optional = t option
 
   let eq a b = match (a,b) with
-    | Property a, Property b -> a == b (* pysical equality for JS any, because I don't trust JS equality *)
+    | Property a, Property b -> a = b
     | Attribute a, Attribute b -> a = b
     | Attribute _, Property _
     | Property _, Attribute _
@@ -43,17 +47,21 @@ module Attr = struct
   let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
   let property  name value = Some (AttrKey.Property_name name, Property value)
 
-  let event_handler_attrib name value =
-    let handler e =
-      match value e with
-        | `Unhandled -> ()
-        | `Handled -> Dom.preventDefault e
-        | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
-    in
-    property name (Js.Unsafe.inject handler)
+  let event_handler_attrib name value = property name (Event_handler value)
+
+  let js_of_property = function
+    | String_prop s -> Js.string s |> Js.Unsafe.inject
+    | Event_handler handler ->
+      let handler e =
+        match handler e with
+          | `Unhandled -> ()
+          | `Handled -> Dom.preventDefault e
+          | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
+      in
+      Js.Unsafe.inject handler
 
   let string_property name value =
-    Some (AttrKey.Property_name name, Property (Js.Unsafe.inject (Js.string value)))
+    Some (AttrKey.Property_name name, Property (String_prop value))
 
   let canonicalize_pair : t -> (string * value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
