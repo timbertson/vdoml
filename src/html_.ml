@@ -171,6 +171,6 @@ module Input = struct
         | None -> `Unhandled
     )
 
-  let a_oninput = a_on "change"
-  let a_onchange  = a_on "input"
+  let a_oninput = a_on "input"
+  let a_onchange  = a_on "change"
 end
