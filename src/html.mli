@@ -30,8 +30,5 @@ module Input : sig
   val contents : event -> string
   val event : event -> Dom_html.event Js.t
   val element : event -> Dom_html.inputElement Js.t
-
-  val a_on : string -> (event -> event_response) -> vdom_attr
-  val a_oninput : (event -> event_response) -> vdom_attr
-  val a_onchange : (event -> event_response) -> vdom_attr
+  val lift : (event -> event_response) -> (#Dom_html.event Js.t -> event_response)
 end

@@ -45,14 +45,29 @@ val render :
 
 val onload : (unit -> unit Lwt.t) -> unit
 
+val bind : ('elt, 'model, 'message) instance
+  -> ('model -> 'arg -> Html.event_response)
+  -> ('arg -> Html.event_response)
+
+val handler :
+  ('elt, 'model, 'message) instance
+  -> ?response:Html.event_response
+  -> ('model -> 'arg -> 'message)
+  -> ('arg -> Html.event_response)
+
+val emitter :
+  ('elt, 'model, 'message) instance
+  -> ?response:Html.event_response
+  -> 'message
+  -> ('ignored -> Html.event_response)
+
+val handle : ?response:Html.event_response
+  -> ('arg -> unit)
+  -> ('arg -> Html.event_response)
+
 val main :
   ?log:Logs.level
   -> ?root:(unit -> Dom_html.element Js.t)
   -> ?background:(unit -> unit Lwt.t)
   -> ('model, 'message, 'elt) component
   -> unit -> unit Lwt.t
-
-module Handler : sig
-  val wrap : (unit -> unit) -> ('a -> Html.event_response)
-  val emit : ('elt, 'model, 'message) instance -> 'message -> ('a -> Html.event_response)
-end

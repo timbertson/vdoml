@@ -115,6 +115,34 @@ module Ui = struct
 
   let emit instance = instance.emit
 
+  let bind instance handler = (fun evt ->
+    (* XXX this relies on never rendering any instance
+     * twice in the DOM tree. That seems like a good restriction,
+     * but it's not enforced anywhere
+     *)
+    match !(instance.state) with
+    | Some state -> handler state.state_val evt
+    | None -> `Unhandled
+  )
+
+  let handler instance ?(response=`Handled) handler =
+    let emit = emit instance in
+    bind instance (fun state event ->
+      emit (handler state event);
+      response
+    )
+
+  let emitter instance ?(response=`Handled) msg =
+    let emit = emit instance in
+    (fun _evt ->
+      emit msg;
+      response
+    )
+
+  let handle ?(response=`Handled) handler = fun arg ->
+    handler arg;
+    response
+
   (* default implementation: just use a list *)
   module ChildCache = Collection_cache.Make(Collection_cache.Child_list)
 
@@ -146,11 +174,6 @@ module Ui = struct
       state = ref None;
     } in
     update_and_view child
-
-  module Handler = struct
-    let wrap fn : 'a -> Html.event_response = fun _ -> fn (); `Handled
-    let emit instance message : 'a -> Html.event_response = (fun _ -> emit instance message; `Handled)
-  end
 
   let render
       (component: ('elt, 'model, 'message) component)
