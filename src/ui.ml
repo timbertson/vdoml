@@ -1,1 +1,1 @@
-include Ui_.Ui
+include Ui_.Make(Diff_.No_hooks)

@@ -1,12 +1,14 @@
 open Log_
 open Vdom_
 open Attr_
-open Diff_
+open Ui_main_
 
 let identity x = x
 
-module Ui = struct
+module Make(Hooks:Diff_.DOM_HOOKS) = struct
+  module Diff = Diff_.Make(Hooks)
   type identity = Vdom.user_tag
+  type context = Ui_main.context
 
   let init_logging () =
     (* setup console *)
@@ -32,6 +34,7 @@ module Ui = struct
 
   type node = Html_.vdom_node
 
+
   type ('elt, 'a) instance_state = {
     state_val: 'a;
     state_counter: int;
@@ -49,6 +52,7 @@ module Ui = struct
   }
 
   and ('elt, 'model, 'message) instance = {
+    context: context;
     emit: 'message emit_fn;
     identity: Vdom.identity;
     instance_view: ('elt, 'model, 'message) view_fn;
@@ -103,9 +107,10 @@ module Ui = struct
       instance.state := Some (state);
       state.state_view
 
-  let instantiate component =
+  let instantiate ~context component =
     let events, emit = Lwt_stream.create () in
     let instance = {
+      context;
       emit = (fun msg -> emit (Some msg));
       identity = gen_identity None;
       state = ref None;
@@ -155,6 +160,7 @@ module Ui = struct
         state |> List.map (fun state ->
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view {
+            context = instance.context;
             emit = emit;
             identity = id;
             instance_view = view;
@@ -168,6 +174,7 @@ module Ui = struct
 
   let child ~view ~message ?id instance =
     let child : ('elt, 'model, 'message) instance = {
+      context = instance.context;
       emit = wrap_message instance message;
       identity = gen_identity id;
       instance_view = view;
@@ -175,71 +182,57 @@ module Ui = struct
     } in
     update_and_view child
 
+  let async instance th = Ui_main.async (instance.context) th
+
   let render
       (component: ('elt, 'model, 'message) component)
       (root:Dom_html.element Js.t)
-      : ('elt, 'model, 'message) instance * unit Lwt.t =
-    let instance, events = instantiate component in
+      : ('elt, 'model, 'message) instance * context =
 
-    let run_thread = (
+    let context = Ui_main.init root in
+    let (instance, events) = instantiate ~context component in
+    async instance (
       let view_fn = update_and_view instance in
       (* NOTE: we're duplicating state and view here
        * because we can't trust the user not to mess
        * with it by rendering an instance twice *)
       let state = ref component.init in
       let view = ref (view_fn !state) in
-      try%lwt
-        Diff.init !view root;
-        Lwt_stream.iter (fun message ->
-          let new_state = component.update !state message in
-          let new_view = view_fn new_state in
-          Log.info (fun m -> m "Updating view");
-          Diff.update !view new_view root;
-          state := new_state;
-          view := new_view;
-        ) events
-      with e -> (
-        let backtrace = Printexc.get_backtrace () in
-        let err = Printexc.to_string e in
-        Log.err (fun m -> m "%s\n%s" err backtrace);
-        (try
-          (* Diff.remove_all root; *)
-          Diff.prepend (
-            let open Html in
-            div [
-              h1 [ pcdata "Uncaught error:" ];
-              h2 [ pcdata err ];
-              pre [ pcdata backtrace ];
-              hr ();
-            ]
-          ) root;
-          with _ -> ()
-        );
-        raise e
-      )
-    ) in
-    (instance, run_thread)
-
+      Diff.init !view root;
+      Lwt_stream.iter (fun message ->
+        let new_state = component.update !state message in
+        let new_view = view_fn new_state in
+        Log.info (fun m -> m "Updating view");
+        Diff.update !view new_view root;
+        state := new_state;
+        view := new_view;
+      ) events
+    );
+    (instance, context)
 
   let onload fn =
-    (* Note: this should be Lwt_main.run, but no such thing in JS *)
-    let (_:unit Lwt.t) = (Lwt.(Lwt_js_events.onload () >>= (fun _evt -> fn ()))) in
-    ()
+    let open Lwt in
+    ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
 
-  let main ?log ?root ?background ui () =
+  let main ?log ?root ?get_root ?background ui () =
     let () = match log with
       | Some lvl -> set_log_level lvl
       | None -> init_logging ()
     in
-    let root = match root with
-      | Some root -> root
-      | None -> (fun () -> (Dom_html.document##.body))
+    let get_root = match get_root with
+      | Some get_root -> get_root
+      | None -> (
+        match root with
+          | None -> fun () -> (Dom_html.document##.body)
+          | Some id -> fun () -> Js.Opt.get
+            (Dom_html.document##getElementById (Js.string id))
+            (fun () -> raise (Diff_.Assertion_error ("Element with id " ^ id ^ " not found")))
+      )
     in
-    let background = match background with
-      | Some bg -> bg
-      | None -> (fun () -> Lwt.return_unit)
+    let instance, main = render ui (get_root ()) in
+    let () = match background with
+      | Some fn -> fn instance
+      | None -> ()
     in
-    let instance, run_thread = render ui (root ()) in
-    Lwt.join [ background (); run_thread ]
-
+    Ui_main.wait main
 end

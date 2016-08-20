@@ -1,7 +1,5 @@
 ./gup-ocamlbuild:
 	**_build/*.byte
-	**_build/**/*.cmo
-	**_build/*.cma
-	**_build/*.cmx
+	**_build/**/*.cm*
 ./gup-js:
 	**_build/*.js

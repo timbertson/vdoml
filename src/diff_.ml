@@ -4,7 +4,17 @@ open Attr_
 
 exception Assertion_error of string
 
-module Diff = struct
+module type DOM_HOOKS = sig
+  val register_element : Dom_html.element Js.t -> unit
+  val unregister_element : Dom_html.element Js.t -> unit
+end
+
+module No_hooks : DOM_HOOKS = struct
+  let register_element _e = ()
+  let unregister_element = register_element
+end
+
+module Make(Hooks:DOM_HOOKS) = struct
   open Vdom
   type vdom = Vdom.node
   type element = Dom_html.element Js.t
@@ -31,7 +41,9 @@ module Diff = struct
 
   let remove : [< element_target | node_target ] -> unit = function
       | `Target_node (old, parent) -> Dom.removeChild parent old
-      | `Target_element (old, parent) -> Dom.removeChild parent old
+      | `Target_element (old, parent) ->
+        Hooks.unregister_element old;
+        Dom.removeChild parent old
 
   let add_child ~parent (pos:child_position) (child:any_node) : unit =
     Dom.insertBefore parent child (match pos with
@@ -82,6 +94,7 @@ module Diff = struct
     e_children |> List.iter (fun child ->
       add_child ~parent:dom Append (render child)
     );
+    Hooks.register_element dom;
     dom
 
   and render_raw : raw_node -> any_node = function
@@ -341,6 +354,4 @@ module Diff = struct
     Log.debug (fun m -> m "processing new vdom %s" (string_of_node current));
     let target = only_target_of_parent root in
     update_node previous current target
-
 end
-

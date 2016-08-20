@@ -38,13 +38,6 @@ val child : view:('child_elt, 'child_model, 'child_message) view_fn
   -> 'child_model
   -> node
 
-val render :
-  ('elt, 'model, 'message) component
-  -> Dom_html.element Js.t
-  -> ('elt, 'model, 'message) instance * unit Lwt.t
-
-val onload : (unit -> unit Lwt.t) -> unit
-
 val bind : ('elt, 'model, 'message) instance
   -> ('model -> 'arg -> Html.event_response)
   -> ('arg -> Html.event_response)
@@ -65,9 +58,20 @@ val handle : ?response:Html.event_response
   -> ('arg -> unit)
   -> ('arg -> Html.event_response)
 
+type context
+val async : ('elt, 'model, 'message) instance -> unit Lwt.t -> unit
+
+val render :
+  ('elt, 'model, 'message) component
+  -> Dom_html.element Js.t
+  -> ('elt, 'model, 'message) instance * context
+
+val onload : (unit -> unit Lwt.t) -> unit
+
 val main :
   ?log:Logs.level
-  -> ?root:(unit -> Dom_html.element Js.t)
-  -> ?background:(unit -> unit Lwt.t)
-  -> ('model, 'message, 'elt) component
+  -> ?root:string
+  -> ?get_root:(unit -> Dom_html.element Js.t)
+  -> ?background:(('elt, 'model, 'message) instance -> unit)
+  -> ('elt, 'model, 'message) component
   -> unit -> unit Lwt.t

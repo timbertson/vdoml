@@ -170,26 +170,4 @@ module Input = struct
       | Some rv -> rv
       | None -> `Unhandled
   )
-
-
-  let a_on event (handler: event -> event_response) =
-    a_on event (fun ev ->
-      let rv = ref None in
-      Js.Opt.iter (ev##.target) (fun target ->
-        Js.Opt.iter (Dom_html.CoerceTo.input target) (fun input ->
-          let arg = {
-            event = ev;
-            element = input;
-            contents = Js.to_string (input##.value);
-          } in
-          rv := Some (handler arg)
-        )
-      );
-      match !rv with
-        | Some rv -> rv
-        | None -> `Unhandled
-    )
-
-  let a_oninput = a_on "input"
-  let a_onchange  = a_on "change"
 end

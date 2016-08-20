@@ -388,9 +388,5 @@ end
 
 let () =
   Logs.(Src.set_level log_src (Some Warning));
-  let root () = Js.Opt.get
-    (Dom_html.document##getElementById (Js.string "todomvc"))
-    (fun () -> assert false)
-  in
   let ui = App.build None in
-  Ui.onload (Ui.main ~log:Logs.Debug ~root ui)
+  Ui.onload (Ui.main ~log:Logs.Debug ~root:"todomvc" ui)
