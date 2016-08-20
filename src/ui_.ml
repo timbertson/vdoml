@@ -193,9 +193,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     let (instance, events) = instantiate ~context component in
     async instance (
       let view_fn = update_and_view instance in
-      (* NOTE: we're duplicating state and view here
-       * because we can't trust the user not to mess
-       * with it by rendering an instance twice *)
       let state = ref component.init in
       let view = ref (view_fn !state) in
       Diff.init !view root;
