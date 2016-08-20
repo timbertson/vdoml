@@ -10,6 +10,13 @@ target_name="${2#*_build/}"
 if test -z "$basedir"; then
 	basedir="."
 fi
+if [[ "$target_name" == *.docdir ]]; then
+	# actually tell ocamlbuild to make */index.html,
+	# because we can\'t store gup metadata in ocamlbuild's
+	# owned docdir
+	target_name="$target_name/index.html"
+fi
+
 # don't build anything without a _tags file
 test -f "$basedir/_tags" || (echo "No tags file found in '$basedir'"; exit 1)
 pushd "$basedir" >/dev/null
@@ -17,4 +24,6 @@ ocamlbuild $OCAMLBUILD_FLAGS -use-ocamlfind -no-links "$target_name"
 popd >/dev/null
 gup --always
 gup --leave
-gup --contents "$2"
+if ! [ -d "$2" ]; then
+	gup --contents "$2"
+fi

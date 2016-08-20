@@ -54,6 +54,7 @@ module App = struct
 
 	let view instance =
 		let add = Ui.emitter instance Add in
+		let abort = (fun _ -> Ui.abort instance; `Handled) in
 		let view_items = Ui.collection
 			~view:(view_item)
 			~id:(fun item -> `Int item.id)
@@ -67,6 +68,11 @@ module App = struct
 					s_class "mdl-button mdl-js-button mdl-button--raised";
 					a_onclick add
 				] [ text "add" ];
+
+				button ~a:[
+					s_class "mdl-button mdl-button-primary mdl-js-button mdl-button--raised";
+					a_onclick abort;
+				] [ text "BOOM" ];
 			]
 
 	let build : (Html5_types.div_content_fun, model, message) Ui.component = Ui.component ~update ~view init

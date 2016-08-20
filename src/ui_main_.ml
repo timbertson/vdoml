@@ -13,7 +13,13 @@ module Ui_main = struct
     let thread = (
       try%lwt
         Lwt_stream.iter_p (fun result -> result) queue
-      with e ->  (
+      with
+      | Lwt.Canceled -> (
+        Log.info (fun m->m "UI cancelled");
+        Diff.remove_all root;
+        Lwt.return_unit
+      )
+      | e -> (
         let backtrace = Printexc.get_backtrace () in
         let err = Printexc.to_string e in
         Log.err (fun m -> m "%s\n%s" err backtrace);
@@ -37,6 +43,7 @@ module Ui_main = struct
 
   let wait ctx = ctx.thread
   let async ctx = ctx.enqueue
+  let cancel ctx = Lwt.cancel ctx.thread
 end
 
 

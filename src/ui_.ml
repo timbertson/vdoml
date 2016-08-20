@@ -232,4 +232,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       | None -> ()
     in
     Ui_main.wait main
+
+  let abort instance = Ui_main.cancel instance.context
 end
