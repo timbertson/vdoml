@@ -1,6 +1,29 @@
 open Attr_
 
-module Vdom = struct
+module type Vdom_s = sig
+  type message
+  type internal_tag = int
+  type user_tag = [`String of string | `Int of int ]
+  type identity = | User_tag of user_tag | Internal_tag of internal_tag
+  type element = 
+    {
+      e_name : string;
+      e_attrs: message Attr.value AttrMap.t;
+      e_children: node list;
+    }
+
+  and text_node = string
+
+  and raw_node =
+    | Element of element
+    | Text of string
+
+  and node =
+    | Anonymous of raw_node
+    | Identified of (identity * raw_node)
+end
+
+module Make(App:App_.S) = struct
   (* pure VDOM widgets, which have no knowledge of HTML / JS
    * but do have the concept of internal + user-assigned identities *)
   type internal_tag = int
@@ -18,7 +41,7 @@ module Vdom = struct
   type element = 
     {
       e_name : string;
-      e_attrs: Attr.value AttrMap.t;
+      e_attrs: App.message Attr.value AttrMap.t;
       e_children: node list;
     }
 

@@ -1,10 +1,10 @@
+app
 collection_cache
 curry
 diff_
-html
+html_s
 html_
-ui
+ui_s
 ui_
-ui_f
 ui_main_
 vdom_

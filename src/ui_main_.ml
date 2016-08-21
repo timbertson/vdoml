@@ -5,7 +5,13 @@ module Ui_main = struct
     enqueue: unit Lwt.t -> unit;
   }
 
-  module Diff = Diff_.Make(Diff_.No_hooks)
+  module Noop_app = struct
+    type message = unit
+    module Hooks : App_.DOM_HOOKS = Diff_.No_hooks
+  end
+
+  module Diff = Diff_.Make(Noop_app)
+  module Html = Html_.Make(Noop_app)
 
   let init root =
     let queue, enqueue = Lwt_stream.create () in

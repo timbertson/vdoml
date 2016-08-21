@@ -1,14 +1,18 @@
 open Log_
-open Vdom_
 open Attr_
 open Ui_main_
 
 let identity x = x
 
-module Make(Hooks:Diff_.DOM_HOOKS) = struct
-  module Diff = Diff_.Make(Hooks)
+module Make(App:App_.S) = struct
+  module Diff = Diff_.Make(App)
+  module Vdom = Vdom_.Make(App)
+  module Html = Html_.Make(App)
+
+  type message = App.message
   type identity = Vdom.user_tag
   type context = Ui_main.context
+  type event_response = Html.event_response
 
   let init_logging () =
     (* setup console *)
@@ -32,8 +36,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let identify id = let open Vdom in identify (User_tag id)
 
-  type node = Html_.vdom_node
-
+  type node = Html.vdom_node
 
   type ('elt, 'a) instance_state = {
     state_val: 'a;
@@ -46,14 +49,14 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   and ('elt, 'state, 'message) view_fn = ('elt, 'state, 'message) instance -> 'state -> 'elt Html.elt
 
   and ('elt, 'state, 'message) component = {
-    init: 'state;
     update: 'state -> 'message -> 'state;
     component_view: ('elt, 'state, 'message) view_fn;
   }
 
   and ('elt, 'state, 'message) instance = {
     context: context;
-    emit: 'message emit_fn;
+    (* emit: 'message emit_fn; *)
+    msgwrap : 'message -> message;
     identity: Vdom.identity;
     instance_view: ('elt, 'state, 'message) view_fn;
     (* This is a bit lame - because we can't encode state in the vdom,
@@ -85,14 +88,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         tag_counter := tag + 1;
         Internal_tag tag
 
-  let wrap_message instance wrapper =
-    (fun msg -> instance.emit (wrapper msg))
-
   let component
       ~(update:'state -> 'message -> 'state)
-      ~(view: ('elt, 'state, 'message) view_fn)
-      (init:'state) = 
-    { init; update; component_view = view }
+      ~(view: ('elt, 'state, 'message) view_fn) () = 
+    { update; component_view = view }
 
   let update_and_view instance =
       let id = instance.identity in
@@ -107,18 +106,20 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let instantiate ~context component =
-    let events, emit = Lwt_stream.create () in
+  let instantiate ~emit ~context component =
     let instance = {
       context;
-      emit = (fun msg -> emit (Some msg));
+      msgwrap = identity;
       identity = gen_identity None;
       state = ref None;
       instance_view = component.component_view;
     } in
-    (instance, events)
+    instance
 
-  let emit instance = instance.emit
+  type event_handler = Html.vdom_property
+  let send instance msg = Html.emit (instance.msgwrap msg)
+  let emit _ = failwith "emit"
+  (* let emit_fn instance fn = Html.emit_fn (instance.msgwrap msg) *)
 
   let bind instance handler = (fun evt ->
     (* XXX this relies on never rendering any instance
@@ -150,10 +151,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   (* default implementation: just use a list *)
   module ChildCache = Collection_cache.Make(Collection_cache.Child_list)
+  let (%) f g = fun x -> f (g x)
 
   let children ~view ~message ~id instance =
     let open Vdom in
-    let emit = wrap_message instance message in
     let cache = ChildCache.init () in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
@@ -161,7 +162,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view {
             context = instance.context;
-            emit = emit;
+            msgwrap = instance.msgwrap % message;
             identity = id;
             instance_view = view;
             state = ref None;
@@ -170,12 +171,13 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         )
       )
 
-  let collection ~view ~id instance = children ~view ~id ~message:identity instance
+  let collection ~view ~id instance =
+    children ~view ~id ~message:identity instance
 
   let child ~view ~message ?id instance =
     let child : ('elt, 'state, 'message) instance = {
       context = instance.context;
-      emit = wrap_message instance message;
+      msgwrap = instance.msgwrap % message;
       identity = gen_identity id;
       instance_view = view;
       state = ref None;
@@ -185,22 +187,26 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let async instance th = Ui_main.async (instance.context) th
 
   let render
-      (component: ('elt, 'state, 'message) component)
+      (component: ('elt, 'state, message) component)
+      (state: 'state)
       (root:Dom_html.element Js.t)
-      : ('elt, 'state, 'message) instance * context =
+      : ('elt, 'state, message) instance * context =
 
     let context = Ui_main.init root in
-    let (instance, events) = instantiate ~context component in
+    let events, emit = Lwt_stream.create () in
+    let emit x = emit (Some x) in
+    let instance = instantiate ~emit ~context component in
+    let event_sink = Diff.({ emit; }) in
     async instance (
       let view_fn = update_and_view instance in
-      let state = ref component.init in
+      let state = ref state in
       let view = ref (view_fn !state) in
-      Diff.init !view root;
+      Diff.init event_sink !view root;
       Lwt_stream.iter (fun message ->
         let new_state = component.update !state message in
         let new_view = view_fn new_state in
         Log.info (fun m -> m "Updating view");
-        Diff.update !view new_view root;
+        Diff.update event_sink !view new_view root;
         state := new_state;
         view := new_view;
       ) events
@@ -211,7 +217,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     let open Lwt in
     ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
 
-  let main ?log ?root ?get_root ?background ui () =
+  let main ?log ?root ?get_root ?background ui state () =
     let () = match log with
       | Some lvl -> set_log_level lvl
       | None -> init_logging ()
@@ -226,7 +232,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
             (fun () -> raise (Diff_.Assertion_error ("Element with id " ^ id ^ " not found")))
       )
     in
-    let instance, main = render ui (get_root ()) in
+    let instance, main = render ui state (get_root ()) in
     let () = match background with
       | Some fn -> fn instance
       | None -> ()

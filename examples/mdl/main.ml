@@ -1,21 +1,25 @@
 (* create a Hook module which registers all vdom-created elements with mdl's componentHandler *)
-module Mdl_dom : Ui_f.DOM_HOOKS = struct
-	let componentHandler = lazy (Js.Unsafe.(get global "componentHandler"))
-	let register_element (e: Dom_html.element Js.t) =
-		Js.Unsafe.meth_call (Lazy.force componentHandler) "upgradeElement" [| Js.Unsafe.inject e |]
-	let unregister_element _e = ()
-end
-
-(* Make a non-default version of Ui using our hooks *)
-module Ui = Ui_f.Make(Mdl_dom)
-
-module App = struct
-	let next_id = ref 0
-	type item = { id: int; name: string }
-	type model = { items: item list }
+module Vdoml_app = struct
 	type message =
 		| Add
 		| Edit of int * string
+	module Hooks = struct
+		let componentHandler = lazy (Js.Unsafe.(get global "componentHandler"))
+		let register_element (e: Dom_html.element Js.t) =
+			Js.Unsafe.meth_call (Lazy.force componentHandler) "upgradeElement" [| Js.Unsafe.inject e |]
+		let unregister_element _e = ()
+	end
+end
+
+module Vdoml = Vdoml.App.Make(Vdoml_app)
+open Vdoml
+
+module App = struct
+	open Vdoml_app
+	let next_id = ref 0
+	type item = { id: int; name: string }
+	type model = { items: item list }
+	type message = Vdoml_app.message
 	let init = { items = [] }
 	let update state = function
 		| Add ->
@@ -75,9 +79,8 @@ module App = struct
 				] [ text "BOOM" ];
 			]
 
-	let build : (Html5_types.div_content_fun, model, message) Ui.component = Ui.component ~update ~view init
+	let ui : (Html5_types.div_content_fun, model, message) Ui.component = Ui.component ~update ~view ()
 end
 
 let () =
-	let ui = App.build in
-	Ui.onload (Ui.main ~root:"main" ui)
+	Ui.onload (Ui.main ~root:"main" App.ui App.init)

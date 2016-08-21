@@ -18,15 +18,17 @@ module AttrMap = Map.Make(AttrKey)
 
 module Attr = struct
   type key = AttrKey.t
-  type property =
+  type 'm property =
     | Event_handler of (biggest_event Js.t -> event_response)
+    | Message_fn of (biggest_event Js.t -> 'm option)
+    | Message of 'm
     | String_prop of string
 
-  type value = 
-    | Property of property
+  type 'm value = 
+    | Property of 'm property
     | Attribute of string
-  type t = key * value
-  type optional = t option
+  type 'm t = key * 'm value
+  type 'm optional = 'm t option
 
   let eq a b = match (a,b) with
     | Property a, Property b -> a = b
@@ -49,28 +51,35 @@ module Attr = struct
 
   let event_handler_attrib name value = property name (Event_handler value)
 
-  let js_of_property = function
-    | String_prop s -> Js.string s |> Js.Unsafe.inject
-    | Event_handler handler ->
-      let handler e =
-        match handler e with
-          | `Unhandled -> ()
-          | `Handled -> Dom.preventDefault e
-          | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
-      in
-      Js.Unsafe.inject handler
+  let js_of_property ~emit =
+    let wrap fn =
+      Js.Unsafe.inject (fun e -> match fn e with
+        | `Unhandled -> ()
+        | `Handled -> Dom.preventDefault e
+        | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
+      )
+    in
+    function
+      | String_prop s -> Js.string s |> Js.Unsafe.inject
+      | Message m -> wrap (fun _ -> emit m; `Handled)
+      | Message_fn fn -> wrap (fun e ->
+          match fn e with
+            | Some m -> emit m; `Handled
+            | None -> `Unhandled
+          )
+      | Event_handler handler -> wrap handler
 
   let string_property name value =
     Some (AttrKey.Property_name name, Property (String_prop value))
 
-  let canonicalize_pair : t -> (string * value) = function
+  let canonicalize_pair : 'm t -> (string * 'm value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
     | AttrKey.Attribute_name name, (Attribute _ as value) -> (name, value)
     | AttrKey.Property_name _, Attribute _
     | AttrKey.Attribute_name _, Property _
       -> assert false
 
-  let list_to_attrs (attrs: optional list) : value AttrMap.t =
+  let list_to_attrs (attrs: 'm optional list) : 'm value AttrMap.t =
     List.fold_left (fun attrs -> function
       | Some (name, prop) -> AttrMap.add name prop attrs
       | None -> attrs

@@ -1,21 +1,21 @@
 open Log_
-open Vdom_
 open Attr_
 
 exception Assertion_error of string
 
-module type DOM_HOOKS = sig
-  val register_element : Dom_html.element Js.t -> unit
-  val unregister_element : Dom_html.element Js.t -> unit
-end
-
-module No_hooks : DOM_HOOKS = struct
+module No_hooks : App_.DOM_HOOKS = struct
   let register_element _e = ()
   let unregister_element = register_element
 end
 
-module Make(Hooks:DOM_HOOKS) = struct
+module Make(App:App_.S) = struct
+  module Vdom = Vdom_.Make(App)
   open Vdom
+  type message = App.message
+  type ctx = {
+    emit : message -> unit;
+  }
+
   type vdom = Vdom.node
   type element = Dom_html.element Js.t
   type text_node = Dom.text Js.t
@@ -42,7 +42,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   let remove : [< element_target | node_target ] -> unit = function
       | `Target_node (old, parent) -> Dom.removeChild parent old
       | `Target_element (old, parent) ->
-        Hooks.unregister_element old;
+        App.Hooks.unregister_element old;
         Dom.removeChild parent old
 
   let add_child ~parent (pos:child_position) (child:any_node) : unit =
@@ -63,16 +63,16 @@ module Make(Hooks:DOM_HOOKS) = struct
     in
     loop ()
 
-  let _set_attr (element:element) pair : unit =
+  let _set_attr ctx (element:element) pair : unit =
     let open Attr in
     match pair with
       | key, Attribute value ->
           element##(setAttribute (Js.string key) (Js.string value))
       | key, Property value ->
-          Js.Unsafe.set element (Js.string key) (Attr.js_of_property value)
+          Js.Unsafe.set element (Js.string key) (Attr.js_of_property ~emit:ctx.emit value)
 
-  let set_attr (element:element) (key:AttrKey.t) (value:Attr.value) : unit =
-    _set_attr element (Attr.canonicalize_pair (key, value))
+  let set_attr ctx (element:element) (key:AttrKey.t) (value: message Attr.value) : unit =
+    _set_attr ctx element (Attr.canonicalize_pair (key, value))
 
   let remove_attr (element:element) (key:AttrKey.t) : unit =
     let open AttrKey in
@@ -86,24 +86,24 @@ module Make(Hooks:DOM_HOOKS) = struct
   let render_text t : text_node =
     Dom_html.document##createTextNode(Js.string t)
 
-  let rec render_element e : element =
+  let rec render_element ctx e : element =
     Log.info (fun m->m "rendering element: %s" (string_of_element e));
     let { e_attrs; e_children; e_name } = e in
     let dom = Dom_html.document##createElement(Js.string e_name) in
-    e_attrs |> AttrMap.iter (set_attr dom);
+    e_attrs |> AttrMap.iter (set_attr ctx dom);
     e_children |> List.iter (fun child ->
-      add_child ~parent:dom Append (render child)
+      add_child ~parent:dom Append (render ctx child)
     );
-    Hooks.register_element dom;
+    App.Hooks.register_element dom;
     dom
 
-  and render_raw : raw_node -> any_node = function
-    | Element e -> (render_element e :> any_node)
+  and render_raw ctx : raw_node -> any_node = function
+    | Element e -> (render_element ctx e :> any_node)
     | Text t -> (render_text t :> any_node)
 
-  and render : vdom -> any_node = function
-    | Anonymous raw -> render_raw raw
-    | Identified (_, raw) -> render_raw raw
+  and render ctx : vdom -> any_node = function
+    | Anonymous raw -> render_raw ctx raw
+    | Identified (_, raw) -> render_raw ctx raw
 
   let parent_of_target = function
     | `Target_node (_, parent)
@@ -148,7 +148,7 @@ module Make(Hooks:DOM_HOOKS) = struct
     in
     find list
 
-  let update_attributes previous current (`Target_element (element, _)) : unit =
+  let update_attributes ctx previous current (`Target_element (element, _)) : unit =
     let old_attrs = ref previous in
     let new_values = current |> AttrMap.filter (fun key value ->
       let matches_existing_value = try
@@ -178,7 +178,7 @@ module Make(Hooks:DOM_HOOKS) = struct
         m "setting new attrs: %s" (String.concat ", " attrs)
       );
     );
-    new_values |> AttrMap.iter (set_attr element)
+    new_values |> AttrMap.iter (set_attr ctx element)
 
   let invalid_dom () =
     raise (Assertion_error "Invalid DOM state!")
@@ -186,7 +186,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   let nth_child element idx : any_node option =
     element##.childNodes##item(idx) |> Js.Opt.to_option
 
-  let rec update_children previous current (`Target_element (parent, _)) : unit = (
+  let rec update_children ctx previous current (`Target_element (parent, _)) : unit = (
     let previous_remaining = ref previous in
     let force_dom_node idx : any_node = nth_child parent idx |> force_option in
 
@@ -199,7 +199,7 @@ module Make(Hooks:DOM_HOOKS) = struct
       Log.debug (fun m -> m "processing node %s at idx %d"
         (string_of_node current_child) idx);
       match !previous_remaining with
-        | [] -> add_child ~parent Append (render current_child)
+        | [] -> add_child ~parent Append (render ctx current_child)
         | previous_child :: previous_remaining_tail -> (
           let previous_matching_child = ( match current_child with
             | Identified (current_id, current_node) -> (
@@ -229,7 +229,7 @@ module Make(Hooks:DOM_HOOKS) = struct
           match previous_matching_child with
             | None -> (* No match found; just insert it *)
               Log.info (fun m -> m "inserting before existing node at idx %d" idx);
-              add_child ~parent (Before (force_dom_node idx)) (render current_child)
+              add_child ~parent (Before (force_dom_node idx)) (render ctx current_child)
             | Some previous_matching_child when previous_matching_child = previous_child ->
               (* no reordering required *)
               Log.debug (fun m ->
@@ -238,7 +238,7 @@ module Make(Hooks:DOM_HOOKS) = struct
                 (string_of_node previous_matching_child));
 
               previous_remaining := previous_remaining_tail;
-              update_node previous_matching_child current_child (`Target_node (force_dom_node idx, parent))
+              update_node ctx previous_matching_child current_child (`Target_node (force_dom_node idx, parent))
             | Some previous_matching_child -> (
               (* we found it further in the list, not at the current element.
                * Note: we could do better if we rearranged nodes, but right now just
@@ -261,7 +261,7 @@ module Make(Hooks:DOM_HOOKS) = struct
                 (string_of_node previous_matching_child)
                 (string_of_node current_child));
 
-              update_node
+              update_node ctx
                 previous_matching_child
                 current_child
                 (`Target_node (force_dom_node idx, parent))
@@ -296,7 +296,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   and replace_text : text_node -> string -> unit = fun target current ->
     target##.data := (Js.string current)
 
-  and update_element
+  and update_element ctx
       ({ e_name = previous_name; e_attrs = previous_attrs; e_children = previous_children } as previous)
       ({ e_name = current_name;  e_attrs = current_attrs;  e_children = current_children  } as current)
       (target:element_target) : unit =
@@ -305,17 +305,17 @@ module Make(Hooks:DOM_HOOKS) = struct
       (string_of_element current));
     if previous_name <> current_name then
       (* can't change node type, burn it to the ground *)
-      replace_contents ~target (render_element current)
+      replace_contents ~target (render_element ctx current)
     else (
-      update_attributes previous_attrs current_attrs target;
-      update_children previous_children current_children target
+      update_attributes ctx previous_attrs current_attrs target;
+      update_children ctx previous_children current_children target
     )
 
-  and update_raw previous current (target:[<target]) = (match previous, current with
+  and update_raw ctx previous current (target:[<target]) = (match previous, current with
     | Element previous, Element current ->
         let target = force_target_element target in
-        update_element previous current target
-    | _, Element current -> replace_contents ~target (render_element current)
+        update_element ctx previous current target
+    | _, Element current -> replace_contents ~target (render_element ctx current)
     | Text previous, Text current ->
       if previous <> current then (
         let target = target
@@ -326,32 +326,35 @@ module Make(Hooks:DOM_HOOKS) = struct
     | _, Text current -> replace_contents ~target (render_text current)
   )
 
-  and update_node : vdom -> vdom -> node_target -> unit = fun previous current target -> (
+  and update_node ctx previous current target = (
     if previous != current then (
       (* cheap physical inequality, to short-circuit view functions which use a cached value *)
       match (previous, current) with
-        | Anonymous p, Anonymous c -> update_raw p c (target:>target)
-        | _, Anonymous c -> replace_contents ~target (render_raw c)
+        | Anonymous p, Anonymous c -> update_raw ctx p c (target:>target)
+        | _, Anonymous c -> replace_contents ~target (render_raw ctx c)
         | Identified (pid, p), Identified (cid, c)
-            when Identity.eq pid cid -> update_raw p c (target:>target)
-        | _, Identified (_, c) -> replace_contents ~target (render_raw c)
+            when Identity.eq pid cid -> update_raw ctx p c (target:>target)
+        | _, Identified (_, c) -> replace_contents ~target (render_raw ctx c)
     )
   )
 
   (* used internally to insert errors *)
   let prepend (state:vdom) (parent:element) =
+    let noop_ctx = {
+      emit = ignore;
+    } in
     add_child ~parent (match first_child parent with
       | Some node -> Before node
       | None -> Append
-    ) (render state)
+    ) (render noop_ctx state)
 
   (* Public API: *)
-  let init (state:vdom) (parent:element) =
+  let init ctx (state:vdom) (parent:element) =
     remove_all parent;
-    add_child ~parent Append (render state)
+    add_child ~parent Append (render ctx state)
 
-  let update (previous:vdom) (current:vdom) (root:element) =
+  let update ctx (previous:vdom) (current:vdom) (root:element) =
     Log.debug (fun m -> m "processing new vdom %s" (string_of_node current));
     let target = only_target_of_parent root in
-    update_node previous current target
+    update_node ctx previous current target
 end
