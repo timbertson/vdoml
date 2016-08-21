@@ -43,24 +43,24 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   type 'message emit_fn = 'message -> unit
 
-  and ('elt, 'model, 'message) view_fn = ('elt, 'model, 'message) instance -> 'model -> 'elt Html.elt
+  and ('elt, 'state, 'message) view_fn = ('elt, 'state, 'message) instance -> 'state -> 'elt Html.elt
 
-  and ('elt, 'model, 'message) component = {
-    init: 'model;
-    update: 'model -> 'message -> 'model;
-    component_view: ('elt, 'model, 'message) view_fn;
+  and ('elt, 'state, 'message) component = {
+    init: 'state;
+    update: 'state -> 'message -> 'state;
+    component_view: ('elt, 'state, 'message) view_fn;
   }
 
-  and ('elt, 'model, 'message) instance = {
+  and ('elt, 'state, 'message) instance = {
     context: context;
     emit: 'message emit_fn;
     identity: Vdom.identity;
-    instance_view: ('elt, 'model, 'message) view_fn;
+    instance_view: ('elt, 'state, 'message) view_fn;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
      * This is recommended, but can't be enforced. *)
-    state: ('elt, 'model) instance_state option ref;
+    state: ('elt, 'state) instance_state option ref;
   }
 
   module State = struct
@@ -89,9 +89,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (fun msg -> instance.emit (wrapper msg))
 
   let component
-      ~(update:'model -> 'message -> 'model)
-      ~(view: ('elt, 'model, 'message) view_fn)
-      (init:'model) = 
+      ~(update:'state -> 'message -> 'state)
+      ~(view: ('elt, 'state, 'message) view_fn)
+      (init:'state) = 
     { init; update; component_view = view }
 
   let update_and_view instance =
@@ -173,7 +173,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let collection ~view ~id instance = children ~view ~id ~message:identity instance
 
   let child ~view ~message ?id instance =
-    let child : ('elt, 'model, 'message) instance = {
+    let child : ('elt, 'state, 'message) instance = {
       context = instance.context;
       emit = wrap_message instance message;
       identity = gen_identity id;
@@ -185,9 +185,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let async instance th = Ui_main.async (instance.context) th
 
   let render
-      (component: ('elt, 'model, 'message) component)
+      (component: ('elt, 'state, 'message) component)
       (root:Dom_html.element Js.t)
-      : ('elt, 'model, 'message) instance * context =
+      : ('elt, 'state, 'message) instance * context =
 
     let context = Ui_main.init root in
     let (instance, events) = instantiate ~context component in

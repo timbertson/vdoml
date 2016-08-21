@@ -9,9 +9,9 @@
      as it effectively implements a single "step" of the component's state machine.
    *)
 
-type ('elt, 'model, 'message) component
-type ('elt, 'model, 'message) instance
-type ('elt, 'model, 'message) view_fn = ('elt, 'model, 'message) instance -> 'model -> 'elt Html.elt
+type ('elt, 'state, 'message) component
+type ('elt, 'state, 'message) instance
+type ('elt, 'state, 'message) view_fn = ('elt, 'state, 'message) instance -> 'state -> 'elt Html.elt
 type 'message emit_fn = 'message -> unit
 type node = Html.vdom_node
 
@@ -21,47 +21,47 @@ val identify : identity -> node -> node
     track potentially-reordered nodes across susequent renders. *)
 
 val component : 
-  update:('model -> 'message -> 'model) ->
-  view:('elt, 'model, 'message) view_fn ->
-  'model -> ('elt, 'model, 'message) component
+  update:('state -> 'message -> 'state) ->
+  view:('elt, 'state, 'message) view_fn ->
+  'state -> ('elt, 'state, 'message) component
 (** Create a component with the given view function, update function and initial state. *)
 
-val emit : ('elt, 'model, 'message) instance -> 'message emit_fn
+val emit : ('elt, 'state, 'message) instance -> 'message emit_fn
 (** Emit an update message to the given instance *)
 
 (* like `children`, but with type 'message = `child_message` - i.e. no message conversion *)
-val collection : view:('child_elt, 'child_model, 'message) view_fn
-  -> id:('child_model -> identity)
-  -> ('elt, 'model, 'message) instance
-  -> 'child_model list
+val collection : view:('child_elt, 'child_state, 'message) view_fn
+  -> id:('child_state -> identity)
+  -> ('elt, 'state, 'message) instance
+  -> 'child_state list
   -> node list
 
-val children : view:('child_elt, 'child_model, 'child_message) view_fn
+val children : view:('child_elt, 'child_state, 'child_message) view_fn
   -> message:('child_message -> 'message)
-  -> id:('child_model -> identity)
-  -> ('elt, 'model, 'message) instance
-  -> 'child_model list
+  -> id:('child_state -> identity)
+  -> ('elt, 'state, 'message) instance
+  -> 'child_state list
   -> node list
 
-val child : view:('child_elt, 'child_model, 'child_message) view_fn
+val child : view:('child_elt, 'child_state, 'child_message) view_fn
   -> message:('child_message -> 'message)
   -> ?id:identity
-  -> ('elt, 'model, 'message) instance
-  -> 'child_model
+  -> ('elt, 'state, 'message) instance
+  -> 'child_state
   -> node
 
-val bind : ('elt, 'model, 'message) instance
-  -> ('model -> 'arg -> Html.event_response)
+val bind : ('elt, 'state, 'message) instance
+  -> ('state -> 'arg -> Html.event_response)
   -> ('arg -> Html.event_response)
 
 val handler :
-  ('elt, 'model, 'message) instance
+  ('elt, 'state, 'message) instance
   -> ?response:Html.event_response
-  -> ('model -> 'arg -> 'message)
+  -> ('state -> 'arg -> 'message)
   -> ('arg -> Html.event_response)
 
 val emitter :
-  ('elt, 'model, 'message) instance
+  ('elt, 'state, 'message) instance
   -> ?response:Html.event_response
   -> 'message
   -> ('ignored -> Html.event_response)
@@ -71,8 +71,8 @@ val handle : ?response:Html.event_response
   -> ('arg -> Html.event_response)
 
 type context
-val async : ('elt, 'model, 'message) instance -> unit Lwt.t -> unit
-val abort : ('elt, 'model, 'message) instance -> unit
+val async : ('elt, 'state, 'message) instance -> unit Lwt.t -> unit
+val abort : ('elt, 'state, 'message) instance -> unit
 
 val onload : (unit -> unit Lwt.t) -> unit
 
@@ -80,16 +80,16 @@ val main :
   ?log:Logs.level
   -> ?root:string
   -> ?get_root:(unit -> Dom_html.element Js.t)
-  -> ?background:(('elt, 'model, 'message) instance -> unit)
-  -> ('elt, 'model, 'message) component
+  -> ?background:(('elt, 'state, 'message) instance -> unit)
+  -> ('elt, 'state, 'message) component
   -> unit -> unit Lwt.t
 
 (** {2 Advanced API} *)
 
 val render :
-  ('elt, 'model, 'message) component
+  ('elt, 'state, 'message) component
   -> Dom_html.element Js.t
-  -> ('elt, 'model, 'message) instance * context
+  -> ('elt, 'state, 'message) instance * context
   (** Begin a render lifecycle for a toplevel component.
       Returns the Ui instance corresponding to the component,
       as well as a {!context} representing the lifecycle
