@@ -18,15 +18,18 @@ module AttrMap = Map.Make(AttrKey)
 
 module Attr = struct
   type key = AttrKey.t
-  type property =
-    | Event_handler of (biggest_event Js.t -> event_response)
+  type 'msg property =
     | String_prop of string
+    | Message_emitter of 'msg * event_response
+    | Message_fn of (biggest_event Js.t -> 'msg option)
+    | Message_response_fn of (biggest_event Js.t -> ('msg * event_response) option)
 
-  type value = 
-    | Property of property
+  type 'msg value =
+    | Property of 'msg property
     | Attribute of string
-  type t = key * value
-  type optional = t option
+
+  type 'msg t = key * 'msg value
+  type 'msg optional = 'msg t option
 
   let eq a b = match (a,b) with
     | Property a, Property b -> a = b
@@ -47,30 +50,42 @@ module Attr = struct
   let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
   let property  name value = Some (AttrKey.Property_name name, Property value)
 
-  let event_handler_attrib name value = property name (Event_handler value)
+  let message_emitter_attrib ?(response=`Handled) name value = property name (Message_emitter (value, response))
+  let message_fn_attrib name value = property name (Message_fn value)
+  let message_response_fn_attrib name value = property name (Message_response_fn value)
 
-  let js_of_property = function
-    | String_prop s -> Js.string s |> Js.Unsafe.inject
-    | Event_handler handler ->
-      let handler e =
-        match handler e with
-          | `Unhandled -> ()
-          | `Handled -> Dom.preventDefault e
-          | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
-      in
-      Js.Unsafe.inject handler
+  let js_of_property ~emit =
+    let wrap handler = Js.Unsafe.inject (fun e ->
+      match handler e with
+        | `Unhandled -> ()
+        | `Handled -> Dom.preventDefault e
+        | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
+    ) in
+    function
+      | String_prop s -> Js.string s |> Js.Unsafe.inject
+      | Message_emitter (msg, response) -> wrap (fun _evt -> emit msg; response)
+      | Message_fn fn -> wrap (fun e ->
+        match fn e with
+          | Some msg -> emit msg; `Handled
+          | None -> `Unhandled
+      )
+      | Message_response_fn fn -> wrap (fun e ->
+        match fn e with
+          | Some (msg, response) -> emit msg; response
+          | None -> `Unhandled
+      )
 
   let string_property name value =
     Some (AttrKey.Property_name name, Property (String_prop value))
 
-  let canonicalize_pair : t -> (string * value) = function
+  let canonicalize_pair : 'msg t -> (string * 'msg value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
     | AttrKey.Attribute_name name, (Attribute _ as value) -> (name, value)
     | AttrKey.Property_name _, Attribute _
     | AttrKey.Attribute_name _, Property _
       -> assert false
 
-  let list_to_attrs (attrs: optional list) : value AttrMap.t =
+  let list_to_attrs (attrs: 'msg optional list) : 'msg value AttrMap.t =
     List.fold_left (fun attrs -> function
       | Some (name, prop) -> AttrMap.add name prop attrs
       | None -> attrs

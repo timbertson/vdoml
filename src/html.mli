@@ -32,3 +32,7 @@ module Input : sig
   val element : event -> Dom_html.inputElement Js.t
   val lift : (event -> event_response) -> (#Dom_html.event Js.t -> event_response)
 end
+
+module Html2 : sig
+  type 'message html
+end

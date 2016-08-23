@@ -171,3 +171,7 @@ module Input = struct
       | None -> `Unhandled
   )
 end
+
+module Html2
+  type 'message html = 'message Vdom2.node
+end
