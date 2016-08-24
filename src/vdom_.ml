@@ -22,12 +22,7 @@ module Vdom = struct
      * the type-unsafe "transform" nodes are applied
      *)
     type 'msg pure_node
-    type 'msg pure_element
-    type 'msg pure_raw_node
-
-    type 'msg internal_element
     type 'msg internal_property
-    type 'msg internal_node
 
     type 'msg attr =
       | Property of 'msg internal_property
@@ -37,25 +32,19 @@ module Vdom = struct
       {
         e_name : string;
         e_attrs: 'msg attr AttrMap.t;
-        e_children: 'msg internal_node list;
+        e_children: 'msg node list;
       }
 
-    type 'msg raw_node = 
-      | Element of 'msg internal_element
+    and 'msg raw_node = 
+      | Element of 'msg element
       | Text of string
 
-    type 'msg node = 
+    and 'msg node = 
       | Anonymous of 'msg raw_node
       | Identified of (identity * 'msg raw_node)
 
     val transform : ('a -> 'b) -> 'a pure_node -> 'b pure_node
-    val root : 'msg pure_node -> 'msg internal_node
-
-    (* private -> raw converters *)
-    val get_node : 'msg internal_node -> 'msg node
-    val get_element : 'msg internal_element -> 'msg element
-
-    val element_name : 'msg internal_element -> string
+    val root : 'msg pure_node -> 'msg node
 
     val property_eq : 'msg internal_property -> 'msg internal_property -> bool
     val attr_eq : 'msg attr -> 'msg attr -> bool
@@ -63,23 +52,16 @@ module Vdom = struct
     val string_of_attr : (AttrKey.t * 'msg attr) -> string
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
-    val identity_of_node : 'msg internal_node -> identity option
-
   end = struct
     (* pure_:
      * Built up by creation functions.
      * They form a 'msg pure_node, but *must* only be accessed via the
      * functions in this module in order to be type-safe.
      *
-     * internal_:
-     * Used while walking the tree - allows us to
-     * apply the accessor incrementally, rather than processing the entire tree
-     * up front. As you access each node, you get:
-     *
      * (unprefixed):
-     * The only externally-visible type, allowing users to
-     * pattern match and traverse, while containing only
-     * interal_* components in order to enforce type-safe access.
+     * The only externally-visible type, only given out by
+     * `root` after it has traversed the tree and applied all
+     * transforms
      *)
     type 'msg accessor = {
       apply: ('msg -> 'msg);
@@ -90,7 +72,7 @@ module Vdom = struct
       {
         e_name : string;
         e_attrs: 'msg attr AttrMap.t;
-        e_children: 'msg internal_node list;
+        e_children: 'msg node list;
       }
 
     and 'msg pure_element = 
@@ -107,16 +89,14 @@ module Vdom = struct
     and text_node = string
 
     and 'msg raw_node =
-      | Element of 'msg internal_element
+      | Element of 'msg element
       | Text of string
 
     and 'msg pure_raw_node =
       | Pure_element of 'msg pure_element
       | Pure_text of string
 
-    and 'msg internal_element = 'msg accessor * 'msg pure_element
     and 'msg internal_property = 'msg accessor * 'msg Attr.property
-    and 'msg internal_node = 'msg accessor * 'msg pure_node
 
     and 'msg pure_node =
       | Pure_anonymous of 'msg pure_raw_node
@@ -152,30 +132,24 @@ module Vdom = struct
       | Property a, Property b -> property_eq a b
       | Attribute _, Property _ | Property _, Attribute _ -> false
 
-    let init = {
-      apply = (fun x -> x);
-      identity = [];
-    }
-
-    let root (node: 'msg pure_node) : 'msg internal_node = (init, node)
-
-    let rec get_node (ctx, value) =
-      let get_raw_node = function
-        | Pure_element e -> Element (ctx, e)
-        | Pure_text t -> Text t
-      in
+    let rec convert_node ctx value =
       match value with
-      | Pure_anonymous raw -> Anonymous (get_raw_node raw)
-      | Pure_identified (id, raw) -> Identified (id, get_raw_node raw)
+      | Pure_anonymous raw -> Anonymous (convert_raw ctx raw)
+      | Pure_identified (id, raw) -> Identified (id, convert_raw ctx raw)
       | Pure_transformer child ->
         let { apply; identity } = ctx in
         (* recurse with our new context *)
-        get_node ({
+        let ctx = {
           apply = (fun msg -> apply (child.unsafe_convert msg));
           identity = child.unsafe_convert :: identity;
-        }, child.unsafe_content)
+        } in
+        convert_node ctx child.unsafe_content
 
-    let get_element (ctx, element) = 
+    and convert_raw ctx = function
+      | Pure_element e -> Element (convert_element ctx e)
+      | Pure_text t -> Text t
+
+    and convert_element ctx element =
       let { e_pure_name; e_pure_attrs; e_pure_children} = element in
       {
         e_name = e_pure_name;
@@ -183,8 +157,16 @@ module Vdom = struct
           | Attr.Attribute value -> Attribute value
           | Attr.Property p -> Property (ctx, p)
         );
-        e_children = e_pure_children |> List.map (fun child -> (ctx, child));
+        e_children = e_pure_children |> List.map (convert_node ctx)
       }
+
+    let init = {
+      apply = (fun x -> x);
+      identity = [];
+    }
+
+    let root (node: 'msg pure_node) : 'msg node =
+      convert_node init node
 
     let element_name (ctx, { e_pure_name; _}) = e_pure_name
 
@@ -219,33 +201,8 @@ module Vdom = struct
       | Pure_transformer node -> Pure_transformer { node with
         unsafe_content = identify_anonymous id node.unsafe_content
       }
-
-    let rec identity_of_node (_ctx, node) = match node with
-      | Pure_anonymous _ -> None
-      | Pure_identified (id, _) -> Some id
-      | Pure_transformer node -> identity_of_node (_ctx, node.unsafe_content)
   end
 
   type 'msg html = 'msg Internal.pure_node
-    include Internal
-  (* TODO: *)
-  let string_of_element _ = failwith "TODO"
-  let string_of_raw _ = failwith "TODO"
-  let string_of_node _ = failwith "TODO"
-  let string_of_attr _ = failwith "TODO"
-
-  (* open Internal *)
-  (*  *)
-  (* let string_of_element { e_attrs; e_children; e_name } = *)
-  (*   let attrs = e_attrs |> AttrMap.bindings |> List.map (string_of_attr) |> String.concat " " in *)
-  (*   Printf.sprintf "<%s %s (%d children)>" e_name attrs (List.length e_children) *)
-  (*  *)
-  (* let string_of_raw = function *)
-  (*   | Element e -> string_of_element e *)
-  (*   | Text t -> "<#text: " ^ t ^ ">" *)
-  (*  *)
-  (* let string_of_node = function *)
-  (*   | Anonymous raw -> string_of_raw raw *)
-  (*   | Identified (_id, raw) -> string_of_raw raw *)
-
+  include Internal
 end

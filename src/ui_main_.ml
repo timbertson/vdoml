@@ -25,7 +25,7 @@ module Ui_main = struct
         Log.err (fun m -> m "%s\n%s" err backtrace);
         (try
           (* Diff.remove_all root; *)
-          Diff.prepend (
+          Diff.prepend ~emit:ignore (
             let open Html in
             div [
               h1 [ pcdata "Uncaught error:" ];
