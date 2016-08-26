@@ -53,8 +53,8 @@ module Vdom = struct
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
     val text : string -> 'msg pure_node
-    val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
-    val create_leaf : ?a:'msg Attr.optional list -> string -> 'msg pure_node
+    val create : ?a:'msg Attr.t list -> string -> 'msg pure_node list -> 'msg pure_node
+    val create_leaf : ?a:'msg Attr.t list -> string -> 'msg pure_node
   end = struct
     (* pure_:
      * Built up by creation functions.

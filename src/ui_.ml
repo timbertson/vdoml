@@ -34,7 +34,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   type node = Html_.vdom_node
 
-
   type ('elt, 'a) instance_state = {
     state_val: 'a;
     state_counter: int;

@@ -14,4 +14,4 @@ See examples/ for a TodoMVC example.
 
 I haven't actually _used_ elm, react or flux. And I haven't thought too hard about how it will work more broadly with asynchronous (lwt) behaviour. So it's all very subject to change.
 
-Thanks a lot to the [Ocsigen](http://ocsigen.org/) folks for Lwt, Js_of_ocaml and Tyxml - without any of these this project would be dramatically harder. Also some of the Html module is adopted from [Jane Street's virtual_dom](https://github.com/janestreet/virtual_dom)
+Thanks a lot to the [Ocsigen](http://ocsigen.org/) folks for Lwt and Js_of_ocaml - without these this project would be dramatically harder. Also some of the Html module is adopted from [Jane Street's virtual_dom](https://github.com/janestreet/virtual_dom)

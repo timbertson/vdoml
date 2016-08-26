@@ -2,13 +2,6 @@ open Vdom_
 open Attr_
 
 
-(* additional html utils not provided by tyxml *)
-(* let a_on event (handler : (Dom_html.event) Js.t -> event_response) : Attr.optional = *)
-(*   Attr.event_handler_attr ("on" ^ event) (handler:>(biggest_event Js.t -> event_response)) *)
-
-let s_class c = Attr.attribute "class" c
-let text = Vdom.text
-
 module Input = struct
   type event = {
     event : Dom_html.event Js.t;
@@ -39,4 +32,3 @@ module Input = struct
   )
 end
 
-include Html_gen_

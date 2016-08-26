@@ -15,7 +15,6 @@ let
       ocamlbuild = opamSelection.ocamlbuild;
       ocamlfind = opamSelection.ocamlfind;
       ppx_driver = opamSelection.ppx_driver;
-      tyxml = opamSelection.tyxml;
     };
     opamSelection = world.opamSelection;
     pkgs = world.pkgs;
