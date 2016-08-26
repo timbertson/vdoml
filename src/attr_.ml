@@ -50,9 +50,9 @@ module Attr = struct
   let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
   let property  name value = Some (AttrKey.Property_name name, Property value)
 
-  let message_emitter_attrib ?(response=`Handled) name value = property name (Message_emitter (value, response))
-  let message_fn_attrib name value = property name (Message_fn value)
-  let message_response_fn_attrib name value = property name (Message_response_fn value)
+  let message_emitter_attr ?(response=`Handled) name value = property name (Message_emitter (value, response))
+  let message_fn_attr name value = property name (Message_fn value)
+  let message_response_fn_attr name value = property name (Message_response_fn value)
 
   let js_of_property ~emit =
     let wrap handler = Js.Unsafe.inject (fun e ->

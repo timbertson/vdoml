@@ -52,6 +52,9 @@ module Vdom = struct
     val string_of_attr : (AttrKey.t * 'msg attr) -> string
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
+    val text : string -> 'msg pure_node
+    val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
+    val create_leaf : ?a:'msg Attr.optional list -> string -> 'msg pure_node
   end = struct
     (* pure_:
      * Built up by creation functions.
@@ -201,6 +204,19 @@ module Vdom = struct
       | Pure_transformer node -> Pure_transformer { node with
         unsafe_content = identify_anonymous id node.unsafe_content
       }
+
+    let text (s : string) =
+      Pure_anonymous (Pure_text s)
+
+    let create ?(a=[]) tag children =
+      Pure_anonymous (Pure_element {
+        e_pure_name = tag;
+        e_pure_attrs = Attr.list_to_attrs a;
+        e_pure_children = children
+      })
+
+    let create_leaf ?a tag =
+      create tag ?a []
   end
 
   type 'msg html = 'msg Internal.pure_node
