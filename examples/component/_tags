@@ -1,0 +1,1 @@
+true: debug, package(vdoml,logs,logs.browser,lwt.ppx,js_of_ocaml,js_of_ocaml.ppx,ppx_deriving,js_of_ocaml.deriving.ppx,js_of_ocaml.deriving,react,reactiveData)

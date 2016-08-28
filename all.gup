@@ -1,0 +1,6 @@
+#!bash -eu
+gup -u \
+	lib \
+	examples/all \
+	;
+

@@ -7,6 +7,12 @@ type 'msg attr = 'msg Attr.t
 type event_response = Attr_.event_response
 type 'msg event_handler = 'msg Attr.property
 
+class type biggest_event = object
+  inherit Dom_html.event
+  inherit Dom_html.mouseEvent
+  inherit Dom_html.keyboardEvent
+end
+
 let attr name value =
   match name with
   | "value" | "checked" | "selected" ->
@@ -124,9 +130,9 @@ let a_style = string_attrib "style"
 let a_property = string_attrib "property"
 
 (* event attribute modifiers *)
-let emit ?(response=`Handled) e = Attr.Message_emitter (e, response)
-let emitter fn = Attr.Message_fn fn
-let emitter_response fn = Attr.Message_response_fn fn
+let emit ?response e = Attr.message_emitter ?response e
+let emitter ?response fn = Attr.message_fn ?response fn
+let event_handler fn = Attr.message_response_fn fn
 
 (* Events: *)
 let a_onabort x = property "onabort" x

@@ -20,6 +20,9 @@ fi
 # don't build anything without a _tags file
 test -f "$basedir/_tags" || (echo "No tags file found in '$basedir'"; exit 1)
 pushd "$basedir" >/dev/null
+if [ "$(basename "$(dirname "$(pwd)")")" = 'examples' ]; then
+	gup -u ../../lib
+fi
 ocamlbuild $OCAMLBUILD_FLAGS -use-ocamlfind -no-links "$target_name"
 popd >/dev/null
 gup --always

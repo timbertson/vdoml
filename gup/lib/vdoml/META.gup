@@ -1,0 +1,11 @@
+#!bash -euo pipefail
+cat <<EOF >"$1"
+version = "$(cat ../../VERSION)"
+description = "Virtual DOM"
+requires = "logs logs.browser lwt js_of_ocaml js_of_ocaml.ppx"
+archive(byte) = "vdoml.cma"
+archive(byte, plugin) = "vdoml.cma"
+archive(native) = "vdoml.cmxa"
+archive(native, plugin) = "vdoml.cmxs"
+exists_if = "vdoml.cma"
+EOF

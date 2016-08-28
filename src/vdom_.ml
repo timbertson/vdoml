@@ -182,10 +182,10 @@ module Vdom = struct
       Attr.js_of_property ~emit (match prop with
         | String_prop x -> String_prop x
         | Message_emitter (msg, response) -> Message_emitter (ctx.apply msg, response)
-        | Message_fn fn -> Message_fn (fun event -> match fn event with
+        | Message_fn (fn, response) -> Message_fn ((fun event -> match fn event with
           | Some msg -> Some (ctx.apply msg)
           | None -> None
-        )
+        ), response)
         | Message_response_fn fn -> Message_response_fn (fun event -> match fn event with
           | Some (msg, response) -> Some ((ctx.apply msg), response)
           | None -> None

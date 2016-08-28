@@ -9,7 +9,16 @@ type event_response = [
 
 type 'msg event_handler
 
-val a_on : string -> 'msg event_handler -> 'msg attr
+class type biggest_event = object
+  inherit Dom_html.event
+  inherit Dom_html.mouseEvent
+  inherit Dom_html.keyboardEvent
+end
+
+(* val a_on : string -> 'msg event_handler -> 'msg attr *)
+val emit : ?response:event_response -> 'msg -> 'msg event_handler
+val emitter : ?response:event_response -> (biggest_event Js.t -> 'msg option) -> 'msg event_handler
+val event_handler : (biggest_event Js.t -> ('msg * event_response) option) -> 'msg event_handler
 
 (* TODO: input / keyboard / etc lifters *)
 (* module Input : sig *)

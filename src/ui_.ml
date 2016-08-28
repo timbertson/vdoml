@@ -5,6 +5,8 @@ open Ui_main_
 
 let identity x = x
 
+let (%) f g = fun x -> f (g x)
+
 module Make(Hooks:Diff_.DOM_HOOKS) = struct
   module Diff = Diff_.Make(Hooks)
   type identity = Vdom.user_tag
@@ -32,34 +34,34 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let identify id = let open Vdom in identify (User_tag id)
 
-  type node = Html_.vdom_node
+  type 'msg node = 'msg Html.html
 
-  type ('elt, 'a) instance_state = {
-    state_val: 'a;
+  type ('state, 'msg) instance_state = {
+    state_val: 'state;
     state_counter: int;
-    state_view: Vdom.node;
+    state_view: 'msg Html.html;
   }
 
   type 'message emit_fn = 'message -> unit
 
-  and ('elt, 'state, 'message) view_fn = ('elt, 'state, 'message) instance -> 'state -> 'elt Html.elt
+  and ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
 
-  and ('elt, 'state, 'message) component = {
+  and ('state, 'message) component = {
     init: 'state;
     update: 'state -> 'message -> 'state;
-    component_view: ('elt, 'state, 'message) view_fn;
+    component_view: ('state, 'message) view_fn;
   }
 
-  and ('elt, 'state, 'message) instance = {
+  and ('state, 'message) instance = {
     context: context;
     emit: 'message emit_fn;
     identity: Vdom.identity;
-    instance_view: ('elt, 'state, 'message) view_fn;
+    instance_view: ('state, 'message) view_fn;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
      * This is recommended, but can't be enforced. *)
-    state: ('elt, 'state) instance_state option ref;
+    state: ('state, 'message) instance_state option ref;
   }
 
   module State = struct
@@ -84,12 +86,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         tag_counter := tag + 1;
         Internal_tag tag
 
-  let wrap_message instance wrapper =
-    (fun msg -> instance.emit (wrapper msg))
-
   let component
       ~(update:'state -> 'message -> 'state)
-      ~(view: ('elt, 'state, 'message) view_fn)
+      ~(view: ('state, 'message) view_fn)
       (init:'state) = 
     { init; update; component_view = view }
 
@@ -106,17 +105,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let instantiate ~context component =
-    let events, emit = Lwt_stream.create () in
-    let instance = {
-      context;
-      emit = (fun msg -> emit (Some msg));
-      identity = gen_identity None;
-      state = ref None;
-      instance_view = component.component_view;
-    } in
-    (instance, events)
-
   let emit instance = instance.emit
 
   let bind instance handler = (fun evt ->
@@ -129,30 +117,17 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     | None -> `Unhandled
   )
 
-  let handler instance ?(response=`Handled) handler =
-    let emit = emit instance in
-    bind instance (fun state event ->
-      emit (handler state event);
-      response
-    )
-
-  let emitter instance ?(response=`Handled) msg =
-    let emit = emit instance in
-    (fun _evt ->
-      emit msg;
-      response
-    )
-
-  let handle ?(response=`Handled) handler = fun arg ->
-    handler arg;
-    response
-
   (* default implementation: just use a list *)
   module ChildCache = Collection_cache.Make(Collection_cache.Child_list)
 
-  let children ~view ~message ~id instance =
+  let children (type child_message) (type message) (type child_state) (type state)
+    ~(view:(child_state, child_message) view_fn)
+    ~(message:child_message -> message)
+    ~(id:child_state -> identity)
+    (instance:(state, message) instance)
+  =
     let open Vdom in
-    let emit = wrap_message instance message in
+    let emit = instance.emit % message in
     let cache = ChildCache.init () in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
@@ -160,48 +135,61 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view {
             context = instance.context;
-            emit = emit;
+            emit;
             identity = id;
             instance_view = view;
             state = ref None;
           }) in
           child state
         )
-      )
+      ) |> List.map (Vdom.transform message)
 
   let collection ~view ~id instance = children ~view ~id ~message:identity instance
 
-  let child ~view ~message ?id instance =
-    let child : ('elt, 'state, 'message) instance = {
+  let child (type child_message) (type message) (type child_state) (type state)
+    ~(view:(child_state, child_message) view_fn)
+    ~(message:child_message -> message)
+    ?(id:identity option)
+    (instance:(state, message) instance)
+    : child_state -> message Html.html
+  =
+    let child : (child_state, child_message) instance = {
       context = instance.context;
-      emit = wrap_message instance message;
+      emit = instance.emit % message;
       identity = gen_identity id;
       instance_view = view;
       state = ref None;
     } in
-    update_and_view child
+    fun state -> update_and_view child state |> Vdom.transform message
 
   let async instance th = Ui_main.async (instance.context) th
 
   let render
-      (component: ('elt, 'state, 'message) component)
+      (component: ('state, 'message) component)
       (root:Dom_html.element Js.t)
-      : ('elt, 'state, 'message) instance * context =
+      : ('state, 'message) instance * context =
 
     let context = Ui_main.init root in
-    let (instance, events) = instantiate ~context component in
+    let events, emit = Lwt_stream.create () in
+    let emit = fun msg -> emit (Some msg) in
+    let instance = {
+      context;
+      emit;
+      identity = gen_identity None;
+      state = ref None;
+      instance_view = component.component_view;
+    } in
+
     async instance (
       let view_fn = update_and_view instance in
       let state = ref component.init in
-      let view = ref (view_fn !state) in
-      Diff.init !view root;
+      let dom_state = ref (Diff.init ~emit (view_fn !state) root) in
       Lwt_stream.iter (fun message ->
         let new_state = component.update !state message in
         let new_view = view_fn new_state in
         Log.info (fun m -> m "Updating view");
-        Diff.update !view new_view root;
+        dom_state := Diff.update !dom_state new_view root;
         state := new_state;
-        view := new_view;
       ) events
     );
     (instance, context)

@@ -1,0 +1,9 @@
+#!bash -eu
+gup --leave
+ARCHIVES=lib/vdoml/vdoml.cma
+gup -u \
+	src/.stamp \
+	lib/vdoml/META \
+	$ARCHIVES \
+	;
+gup --contents $ARCHIVES

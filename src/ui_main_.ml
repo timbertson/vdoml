@@ -28,9 +28,9 @@ module Ui_main = struct
           Diff.prepend ~emit:ignore (
             let open Html in
             div [
-              h1 [ pcdata "Uncaught error:" ];
-              h2 [ pcdata err ];
-              pre [ pcdata backtrace ];
+              h1 [ text "Uncaught error:" ];
+              h2 [ text err ];
+              pre [ text backtrace ];
               hr ();
             ]
           ) root;

@@ -9,70 +9,54 @@
      as it effectively implements a single "step" of the component's state machine.
    *)
 
-type ('elt, 'state, 'message) component
-type ('elt, 'state, 'message) instance
-type ('elt, 'state, 'message) view_fn = ('elt, 'state, 'message) instance -> 'state -> 'elt Html.elt
+type ('state, 'message) component
+type ('state, 'message) instance
+type ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
 type 'message emit_fn = 'message -> unit
-type node = Html.vdom_node
+type 'message node = 'message Html.html
 
 type identity = [ `String of string | `Int of int ]
-val identify : identity -> node -> node
+val identify : identity -> 'msg node -> 'msg node
 (** Assign an identity to a node. This will be used by the diffing algorithm to
     track potentially-reordered nodes across susequent renders. *)
 
 val component : 
   update:('state -> 'message -> 'state) ->
-  view:('elt, 'state, 'message) view_fn ->
-  'state -> ('elt, 'state, 'message) component
+  view:('state, 'message) view_fn ->
+  'state -> ('state, 'message) component
 (** Create a component with the given view function, update function and initial state. *)
 
-val emit : ('elt, 'state, 'message) instance -> 'message emit_fn
+val emit : ('state, 'message) instance -> 'message emit_fn
 (** Emit an update message to the given instance *)
 
 (* like `children`, but with type 'message = `child_message` - i.e. no message conversion *)
-val collection : view:('child_elt, 'child_state, 'message) view_fn
+val collection : view:('child_state, 'message) view_fn
   -> id:('child_state -> identity)
-  -> ('elt, 'state, 'message) instance
+  -> ('state, 'message) instance
   -> 'child_state list
-  -> node list
+  -> 'message node list
 
-val children : view:('child_elt, 'child_state, 'child_message) view_fn
+val children : view:('child_state, 'child_message) view_fn
   -> message:('child_message -> 'message)
   -> id:('child_state -> identity)
-  -> ('elt, 'state, 'message) instance
+  -> ('state, 'message) instance
   -> 'child_state list
-  -> node list
+  -> 'message node list
 
-val child : view:('child_elt, 'child_state, 'child_message) view_fn
+val child : view:('child_state, 'child_message) view_fn
   -> message:('child_message -> 'message)
   -> ?id:identity
-  -> ('elt, 'state, 'message) instance
+  -> ('state, 'message) instance
   -> 'child_state
-  -> node
+  -> 'message Html.html
 
-val bind : ('elt, 'state, 'message) instance
+val bind : ('state, 'message) instance
   -> ('state -> 'arg -> Html.event_response)
   -> ('arg -> Html.event_response)
 
-val handler :
-  ('elt, 'state, 'message) instance
-  -> ?response:Html.event_response
-  -> ('state -> 'arg -> 'message)
-  -> ('arg -> Html.event_response)
-
-val emitter :
-  ('elt, 'state, 'message) instance
-  -> ?response:Html.event_response
-  -> 'message
-  -> ('ignored -> Html.event_response)
-
-val handle : ?response:Html.event_response
-  -> ('arg -> unit)
-  -> ('arg -> Html.event_response)
-
 type context
-val async : ('elt, 'state, 'message) instance -> unit Lwt.t -> unit
-val abort : ('elt, 'state, 'message) instance -> unit
+val async : ('state, 'message) instance -> unit Lwt.t -> unit
+val abort : ('state, 'message) instance -> unit
 
 val onload : (unit -> unit Lwt.t) -> unit
 
@@ -80,16 +64,16 @@ val main :
   ?log:Logs.level
   -> ?root:string
   -> ?get_root:(unit -> Dom_html.element Js.t)
-  -> ?background:(('elt, 'state, 'message) instance -> unit)
-  -> ('elt, 'state, 'message) component
+  -> ?background:(('state, 'message) instance -> unit)
+  -> ('state, 'message) component
   -> unit -> unit Lwt.t
 
 (** {2 Advanced API} *)
 
 val render :
-  ('elt, 'state, 'message) component
+  ('state, 'message) component
   -> Dom_html.element Js.t
-  -> ('elt, 'state, 'message) instance * context
+  -> ('state, 'message) instance * context
   (** Begin a render lifecycle for a toplevel component.
       Returns the Ui instance corresponding to the component,
       as well as a {!context} representing the lifecycle

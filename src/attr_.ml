@@ -21,7 +21,7 @@ module Attr = struct
   type 'msg property =
     | String_prop of string
     | Message_emitter of 'msg * event_response
-    | Message_fn of (biggest_event Js.t -> 'msg option)
+    | Message_fn of (biggest_event Js.t -> 'msg option) * event_response
     | Message_response_fn of (biggest_event Js.t -> ('msg * event_response) option)
 
   type 'msg value =
@@ -49,9 +49,9 @@ module Attr = struct
   let attribute name value = AttrKey.Attribute_name name, Attribute value
   let property  name value = AttrKey.Property_name name, Property value
 
-  let message_emitter_attr ?(response=`Handled) name value = property name (Message_emitter (value, response))
-  let message_fn_attr name value = property name (Message_fn value)
-  let message_response_fn_attr name value = property name (Message_response_fn value)
+  let message_emitter ?(response=`Handled) value = Message_emitter (value, response)
+  let message_fn ?(response=`Handled) fn = Message_fn (fn, response)
+  let message_response_fn fn = Message_response_fn fn
 
   let js_of_property ~emit =
     let wrap handler = Js.Unsafe.inject (fun e ->
@@ -63,9 +63,9 @@ module Attr = struct
     function
       | String_prop s -> Js.string s |> Js.Unsafe.inject
       | Message_emitter (msg, response) -> wrap (fun _evt -> emit msg; response)
-      | Message_fn fn -> wrap (fun e ->
+      | Message_fn (fn, response) -> wrap (fun e ->
         match fn e with
-          | Some msg -> emit msg; `Handled
+          | Some msg -> emit msg; response
           | None -> `Unhandled
       )
       | Message_response_fn fn -> wrap (fun e ->
