@@ -2,10 +2,7 @@ open Log_
 open Vdom_
 open Attr_
 open Ui_main_
-
-let identity x = x
-
-let (%) f g = fun x -> f (g x)
+open Util_
 
 module Make(Hooks:Diff_.DOM_HOOKS) = struct
   module Diff = Diff_.Make(Hooks)
@@ -114,7 +111,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
      *)
     match !(instance.state) with
     | Some state -> handler state.state_val evt
-    | None -> `Unhandled
+    | None -> Event.unhandled
   )
 
   (* default implementation: just use a list *)

@@ -51,8 +51,8 @@ val child : view:('child_state, 'child_message) view_fn
   -> 'message Html.html
 
 val bind : ('state, 'message) instance
-  -> ('state -> 'arg -> Html.event_response)
-  -> ('arg -> Html.event_response)
+  -> ('state -> 'arg -> 'msg Event.result)
+  -> ('arg -> 'msg Event.result)
 
 type context
 val async : ('state, 'message) instance -> unit Lwt.t -> unit

@@ -1,33 +1,9 @@
 type 'msg html = 'msg Vdom_.Vdom.html
 type 'msg attr = 'msg Attr_.Attr.t
-
-type event_response = [
-  | `Unhandled
-  | `Handled
-  | `Stop
-]
-
 type 'msg event_handler
 
-class type biggest_event = object
-  inherit Dom_html.event
-  inherit Dom_html.mouseEvent
-  inherit Dom_html.keyboardEvent
-end
-
-(* val a_on : string -> 'msg event_handler -> 'msg attr *)
-val emit : ?response:event_response -> 'msg -> 'msg event_handler
-val emitter : ?response:event_response -> (biggest_event Js.t -> 'msg option) -> 'msg event_handler
-val event_handler : (biggest_event Js.t -> ('msg * event_response) option) -> 'msg event_handler
-
-(* TODO: input / keyboard / etc lifters *)
-(* module Input : sig *)
-(*   type event *)
-(*   val contents : event -> string *)
-(*   val event : event -> Dom_html.event Js.t *)
-(*   val element : event -> Dom_html.inputElement Js.t *)
-(*   val lift : (event -> event_response) -> (#Dom_html.event Js.t -> event_response) *)
-(* end *)
+val emitter : ?response:Event.response -> 'msg-> 'msg event_handler
+val handler: (Event.biggest_event Js.t -> 'msg Event.result) -> 'msg event_handler
 
 (* General HTML builders *)
 (* TyXML

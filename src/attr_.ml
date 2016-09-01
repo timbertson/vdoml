@@ -1,14 +1,34 @@
-type event_response = [
-  | `Unhandled
-  | `Handled
-  | `Stop
-]
+open Util_
 
-class type biggest_event = object
-  inherit Dom_html.event
-  inherit Dom_html.mouseEvent
-  inherit Dom_html.keyboardEvent
-end
+(* module Chain : sig *)
+(*   type ('a, 'b) t *)
+(*   val apply: ('a, 'b) t -> 'a -> 'b *)
+(*   val eq: ('a, 'b) t -> ('a, 'b) t -> bool *)
+(*   val init: ('a -> 'b) -> ('a, 'b) t *)
+(*   val compose: ('a, 'b) t -> ('b, 'c) t -> ('a, 'c) t *)
+(* end = struct *)
+(*   type ('a, 'b) t = { *)
+(*     apply: ('a -> 'b); *)
+(*     identity: ('a -> 'a) list; *)
+(*   } *)
+(*   let eq a b = *)
+(*     a.identity = b.identity *)
+(*  *)
+(*   let init fn = *)
+(*     { *)
+(*       apply = fn; *)
+(*       identity = Obj.magic [fn]; *)
+(*     } *)
+(*  *)
+(*   let apply chain = chain.apply *)
+(*  *)
+(*   let compose a b = *)
+(*     { *)
+(*       apply = apply b % apply a; *)
+(*       identity = Obj.magic a.identity @ Obj.magic b.identity; *)
+(*     } *)
+(* end *)
+
 
 module AttrKey = struct
   type t = Property_name of string | Attribute_name of string
@@ -16,13 +36,14 @@ module AttrKey = struct
 end
 module AttrMap = Map.Make(AttrKey)
 
+
 module Attr = struct
   type key = AttrKey.t
+
   type 'msg property =
     | String_prop of string
-    | Message_emitter of 'msg * event_response
-    | Message_fn of (biggest_event Js.t -> 'msg option) * event_response
-    | Message_response_fn of (biggest_event Js.t -> ('msg * event_response) option)
+    | Message_emitter of 'msg * Event.response
+    | Event_handler of (Event.biggest_event Js.t -> 'msg Event.result)
 
   type 'msg value =
     | Property of 'msg property
@@ -50,29 +71,20 @@ module Attr = struct
   let property  name value = AttrKey.Property_name name, Property value
 
   let message_emitter ?(response=`Handled) value = Message_emitter (value, response)
-  let message_fn ?(response=`Handled) fn = Message_fn (fn, response)
-  let message_response_fn fn = Message_response_fn fn
+  let event_handler fn = Event_handler fn
 
   let js_of_property ~emit =
-    let wrap handler = Js.Unsafe.inject (fun e ->
-      match handler e with
-        | `Unhandled -> ()
-        | `Handled -> Dom.preventDefault e
-        | `Stop -> Dom.preventDefault e; Dom_html.stopPropagation e;
-    ) in
+    (* let open Event_ in *)
     function
       | String_prop s -> Js.string s |> Js.Unsafe.inject
-      | Message_emitter (msg, response) -> wrap (fun _evt -> emit msg; response)
-      | Message_fn (fn, response) -> wrap (fun e ->
-        match fn e with
-          | Some msg -> emit msg; response
-          | None -> `Unhandled
+      | Message_emitter (msg, response) -> Js.Unsafe.inject (fun _e ->
+          emit msg;
+          response
       )
-      | Message_response_fn fn -> wrap (fun e ->
-        match fn e with
-          | Some (msg, response) -> emit msg; response
-          | None -> `Unhandled
-      )
+      | Event_handler handler -> Js.Unsafe.inject (fun e ->
+        let result = handler e in
+        Event_.Event.apply emit (result:>'msg Event.result)
+    )
 
   let string_property name value =
     AttrKey.Property_name name, Property (String_prop value)

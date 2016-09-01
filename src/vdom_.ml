@@ -1,4 +1,5 @@
 open Attr_
+open Event_
 
 module Vdom = struct
   (* pure VDOM widgets, which have no knowledge of HTML / JS
@@ -181,15 +182,8 @@ module Vdom = struct
       let open Attr in
       Attr.js_of_property ~emit (match prop with
         | String_prop x -> String_prop x
+        | Event_handler handler -> Event_handler (fun e -> Event.map_msg ctx.apply (handler e))
         | Message_emitter (msg, response) -> Message_emitter (ctx.apply msg, response)
-        | Message_fn (fn, response) -> Message_fn ((fun event -> match fn event with
-          | Some msg -> Some (ctx.apply msg)
-          | None -> None
-        ), response)
-        | Message_response_fn fn -> Message_response_fn (fun event -> match fn event with
-          | Some (msg, response) -> Some ((ctx.apply msg), response)
-          | None -> None
-        )
       )
 
     let rec identify id = function

@@ -4,3 +4,6 @@
 	**_build/doc/*.docdir
 ./gup-js:
 	**_build/*.js
+./gup-clean:
+	examples/*/clean
+	clean

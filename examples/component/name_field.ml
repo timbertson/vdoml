@@ -11,12 +11,12 @@ let view (instance: (model, message) Ui.instance) : model -> message Html.html =
 				(Js.Opt.bind event##.currentTarget Dom_html.CoerceTo.input)
 				(fun () -> assert false) in
 		
-		Some (Js.to_string input##.value)
+		Event.emit ~response:`Unhandled (Js.to_string input##.value)
 	in
 	fun state ->
 		let open Html in
 		div [
-			input ~a:[a_oninput (emitter ~response:`Unhandled oninput); a_value state] ();
+			input ~a:[a_oninput (handler oninput); a_value state] ();
 			div [ text "Hello, "; text state ];
 		]
 
