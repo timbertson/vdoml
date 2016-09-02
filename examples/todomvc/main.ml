@@ -92,6 +92,7 @@ module Msg = struct
 end
 
 open Vdoml
+open Util_
 
 (* module for the controls at the bottom of the UI *)
 module Controls = struct
@@ -99,7 +100,7 @@ module Controls = struct
 
   let count count =
     let suffix = if count = 1 then "item" else "items" in
-    span ~a:[ a_class ["todo-count"]] [
+    span ~a:[ a_class "todo-count"] [
       strong [ text (string_of_int count) ];
       text (" " ^ suffix ^ " left");
     ]
@@ -107,14 +108,14 @@ module Controls = struct
   let filters instance =
     let open Visibility in
     let set_visibility target =
-      let onclick = Ui.handler instance (fun _ _ -> Msg.Set_visibility target) in
+      let onclick = Html.emitter (Msg.Set_visibility target) in
       let href = fragment_of_visibility target in
       let description = string_of_visibility target in
       fun current ->
         li ~a:[ a_onclick onclick ] [
           a ~a:[
             a_href href;
-            a_class (if target = current then ["selected"] else []);
+            (if target = current then a_class "selected" else None);
           ] [ text description ]
         ] in
     let visibility_buttons =
@@ -126,11 +127,10 @@ module Controls = struct
           |> List.intersperse (text " ")
     in
   Curry.init (fun visibility ->
-    ul ~a:[ a_class ["filters"] ] (visibility_buttons visibility)
+    ul ~a:[ a_class "filters" ] (visibility_buttons visibility)
   )
 
   let clear_completed instance = 
-    let clear = Ui.handler instance (fun _ _ -> Msg.Delete_complete) in
     function
       | 0 ->
         Log.info (fun m -> m "completed: 0");
@@ -138,8 +138,8 @@ module Controls = struct
       | num_complete ->
         Log.info (fun m -> m "completed: %d" num_complete);
         button ~a:[
-          a_class ["clear-completed"];
-          a_onclick clear;
+          a_class "clear-completed";
+          a_onclick (emitter Msg.Delete_complete);
         ] [
           text ("Clear completed (" ^ (string_of_int num_complete) ^ ")")
         ]
@@ -155,7 +155,7 @@ module Controls = struct
       let num_remaining = num_entries - num_completed in
       if num_entries = 0
         then footer []
-        else footer ~a:[a_class ["footer"]] [
+        else footer ~a:[a_class "footer"] [
           count num_remaining;
           filters visibility;
           clear_completed num_completed;
@@ -224,29 +224,31 @@ module App = struct
      * they return a pure (virtual) HTML structure which
      * is diffed against the previous value to udpdate the real DOM *)
 
-    (* filter keyboard events to just return keys *)
-    let ifreturnkey (fn : ('b #Dom.event as 'a) Js.t -> event_response) = (fun event ->
-      if event##.keyCode == 13
-        then fn (event :> Dom_html.event Js.t)
-        else `Unhandled
-    )
+    (* filter keyboard events to just the "return" key *)
+    let return_key_event evt = evt |>
+      Event.keyboard_event |>
+      Option.filter (fun evt -> evt##.keyCode = 13)
+
+    let when_return_key fn evt = match return_key_event evt with
+      | Some x -> fn evt
+      | None -> Event.unhandled
 
     (* view for the top input (new task entry) *)
     let view_new_task instance =
-      let onchange = Input.lift (fun evt ->
-        let text = Input.contents evt in
-        Log.info(fun m -> m "input changed to: %s" text);
-        Ui.emit instance (Update_field text);
-        `Unhandled
+      let onchange = handler (fun evt ->
+        Event.input_contents evt |> Option.map (fun text ->
+          Log.info(fun m -> m "input changed to: %s" text);
+          Event.emit ~response:`Unhandled (Update_field text)
+        ) |> Event.optional
       ) in
-      let onkeydown = ifreturnkey (Ui.emitter instance Add) in
+      let onkeydown = handler (when_return_key (fun _ -> Event.emit Add)) in
     fun task ->
-      header ~a: [a_class ["header"]] [
+      header ~a: [a_class "header"] [
         h1 [ text "todos" ];
         input ~a:[
-          a_class ["new-todo"];
+          a_class "new-todo";
           a_placeholder "What needs to be done?";
-          a_autofocus `Autofocus;
+          a_autofocus true;
           a_value task;
           a_name "newTodo";
           a_oninput onchange;
@@ -260,50 +262,47 @@ module App = struct
       let open Msg in
       let open Entry in
       let open Ui in
-      let toggle_class name value = if value then [name] else [] in
-      let if_attr a = function true -> a | false -> None in
-      let cancel_editing = handler instance (fun entry _evt ->
-        Modify (entry.id, Editing false)
+      let toggle_class name value = if value then a_class name else None in
+      let cancel_editing = Ui.bind instance (fun entry _event ->
+        Event.emit (Modify (entry.id, Editing false))
       ) in
-      let onkeydown = ifreturnkey cancel_editing in
-      let rename = Input.lift @@ handler instance ~response:`Unhandled (fun entry e ->
-        let text = Input.contents e in
-        Modify (entry.id, Rename text)
+      let onkeydown = when_return_key cancel_editing in
+      let rename = Ui.bind instance (fun entry e ->
+        Event.input_contents e |> Option.map (fun text ->
+          Event.emit ~response:`Unhandled (Modify (entry.id, Rename text))
+        ) |> Event.optional
       ) in
-      let toggle_check = handler instance ~response:`Unhandled (fun entry _evt ->
-        Modify (entry.id, Toggle_check)
-      ) in
-      let delete = handler instance (fun entry _evt -> Delete entry.id) in
-      let start_editing = handler instance (fun entry _evt -> Modify (entry.id, Editing true)) in
+      let toggle_check entry = Modify (entry.id, Toggle_check) in
+      let delete entry = Delete entry.id in
+      let start_editing entry = Modify (entry.id, Editing true) in
       (fun entry ->
         li ~a:[
-          a_class (
-            (toggle_class "completed" entry.completed) @
-            (toggle_class "editing" entry.editing))
+          toggle_class "completed" entry.completed;
+          toggle_class "editing" entry.editing;
         ] [
-          div ~a:[ a_class ["view"] ] [
+          div ~a:[ a_class "view" ] [
             input ~a:[
-              if_attr (a_checked `Checked) entry.completed;
-              a_class ["toggle"];
+              a_checked entry.completed;
+              a_class "toggle";
               a_input_type `Checkbox;
-              a_onclick toggle_check;
+              a_onclick @@ emitter ~response:`Unhandled (toggle_check entry);
             ] ();
             label ~a:[
-              a_on "dblclick" start_editing;
+              a_on "dblclick" @@ emitter (start_editing entry);
             ] [ text entry.name ];
             button ~a:[
-              a_class ["destroy"];
-              a_onclick delete;
+              a_class "destroy";
+              a_onclick @@ emitter (delete entry);
             ] []
           ];
           input ~a:[
-            a_class ["edit"];
+            a_class "edit";
             a_value entry.name;
             a_name "title";
             a_id ("todo-" ^ (string_of_int entry.id));
-            a_onchange rename;
-            a_onblur cancel_editing;
-            a_onkeydown onkeydown;
+            a_onchange (handler rename);
+            a_onblur (handler cancel_editing);
+            a_onkeydown (handler onkeydown);
           ] ()
         ]
       )
@@ -318,10 +317,9 @@ module App = struct
         ~id:(fun state -> `Int state.Entry.id)
         instance
       in
-      let checked = function true -> a_checked `Checked | false -> None in
       let all_completed entries = List.all Entry.is_completed entries in
-      let toggle_all = Ui.handler instance ~response:`Unhandled (fun state _evt ->
-        Check_all (not (all_completed state.entries));
+      let toggle_all = Ui.bind instance (fun state _evt ->
+        Event.emit ~response:`Unhandled (Check_all (not (all_completed state.entries)))
       ) in
       fun visibility ->
         let is_visible = match visibility with
@@ -333,25 +331,25 @@ module App = struct
         | [] -> div []
         | entries -> (
           section ~a:[
-            a_class ["main"];
+            a_class "main";
           ] [
             input ~a:[
-              checked (all_completed entries);
-              a_class ["toggle-all"];
+              a_checked (all_completed entries);
+              a_class "toggle-all";
               a_input_type `Checkbox;
               a_name "toggle";
-              a_onclick toggle_all;
+              a_onclick (handler toggle_all);
             ] ();
             label ~a:[
               a_for "toggle-all";
             ] [ text "Mark all as complete" ];
-            ul ~a:[a_class ["todo-list"]]
+            ul ~a:[a_class "todo-list"]
               (entries |> List.filter is_visible |> view_entries)
           ]
         )
 
     let info_footer =
-      footer ~a:[ a_class ["info"] ] [
+      footer ~a:[ a_class "info" ] [
         p [ text "Double-click to edit a todo" ];
         p [
             text "Written by ";
@@ -370,9 +368,9 @@ module App = struct
       let view_controls = Controls.view instance in
       (fun state ->
         div ~a:[
-          a_class ["todomvc-wrapper"];
+          a_class "todomvc-wrapper";
         ] [
-          section ~a:[ a_class ["todoapp"] ] [
+          section ~a:[ a_class "todoapp" ] [
             view_new_task state.new_value;
             view_entries state.visibility state.entries;
             view_controls state.visibility state.entries;
@@ -389,4 +387,4 @@ end
 let () =
   Logs.(Src.set_level log_src (Some Warning));
   let ui = App.build None in
-  Ui.onload (Ui.main ~log:Logs.Debug ~root:"todomvc" ui)
+  Ui.onload (Ui.main ~log:Logs.Warning ~root:"todomvc" ui)

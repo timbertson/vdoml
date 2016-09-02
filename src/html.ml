@@ -2,7 +2,7 @@ open Vdom_
 open Attr_
 
 type 'msg html = 'msg Vdom.html
-type 'msg attr = 'msg Attr.t
+type 'msg attr = 'msg Attr.optional
 type 'msg event_handler = 'msg Attr.property
 
 let attr name value =
@@ -35,7 +35,6 @@ let uri_attrib = string_attrib
 let space_sep_attrib name values = attr name (String.concat " " values)
 let comma_sep_attrib name values = attr name (String.concat "," values)
 let user_attrib f name v = string_attrib name (f v)
-
 let bool_attrib = user_attrib string_of_bool
 
 let string_of_character = String.make 1
@@ -72,8 +71,8 @@ type input_type = [
 let string_of_numbers l =
     String.concat "," (List.map string_of_int l)
 
-let constant_attrib a () =
-  string_attrib a a
+let constant_attrib a cond =
+  if cond then string_attrib a a else None
 
 let string_of_input_type = function
   | `Button -> "button"
@@ -103,6 +102,7 @@ let string_of_input_type = function
 
 (* Core: *)
 let a_class = string_attrib "class"
+(* TODO: persist this as an actual list / set *)
 let a_class_list = space_sep_attrib "class"
 
 let a_id = string_attrib "id"

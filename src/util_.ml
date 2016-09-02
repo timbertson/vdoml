@@ -20,4 +20,12 @@ module Option = struct
     | None -> ()
 
   let some x = Some x
+
+  let get d = function
+    | Some x -> x
+    | None -> d
+
+  let filter pred = function
+    | Some x as rv when pred x -> rv
+    | None -> None
 end

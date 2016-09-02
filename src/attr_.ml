@@ -50,6 +50,7 @@ module Attr = struct
     | Attribute of string
 
   type 'msg t = key * 'msg value
+  type 'msg optional = 'msg t option
 
   let eq a b = match (a,b) with
     | Property a, Property b -> a = b
@@ -67,8 +68,9 @@ module Attr = struct
     | AttrKey.Attribute_name key, Attribute value -> key ^ "=\"" ^ value ^ "\""
     | _ -> failwith "impossible!"
 
-  let attribute name value = AttrKey.Attribute_name name, Attribute value
-  let property  name value = AttrKey.Property_name name, Property value
+  let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
+  let property  name value = Some (AttrKey.Property_name name, Property value)
+  let string_property name value = property name (String_prop value)
 
   let message_emitter ?(response=`Handled) value = Message_emitter (value, response)
   let event_handler fn = Event_handler fn
@@ -86,8 +88,6 @@ module Attr = struct
         Event_.Event.apply emit (result:>'msg Event.result)
     )
 
-  let string_property name value =
-    AttrKey.Property_name name, Property (String_prop value)
 
   let canonicalize_pair : 'msg t -> (string * 'msg value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
@@ -96,9 +96,11 @@ module Attr = struct
     | AttrKey.Attribute_name _, Property _
       -> assert false
 
-  let list_to_attrs (attrs: 'msg t list) : 'msg value AttrMap.t =
-    List.fold_left (fun attrs (name, prop) ->
-      AttrMap.add name prop attrs
+  let list_to_attrs (attrs: 'msg optional list) : 'msg value AttrMap.t =
+    List.fold_left (fun attrs pair ->
+      match pair with
+      | Some (name, prop) -> AttrMap.add name prop attrs
+      | None -> attrs
     ) AttrMap.empty attrs
 
   (* TODO: support classList rather than a flat class string *)

@@ -1,5 +1,5 @@
 type 'msg html = 'msg Vdom_.Vdom.html
-type 'msg attr = 'msg Attr_.Attr.t
+type 'msg attr = 'msg Attr_.Attr.optional
 type 'msg event_handler
 
 val emitter : ?response:Event.response -> 'msg-> 'msg event_handler
@@ -38,6 +38,7 @@ type 'a star =
 (** {2:attributes Attributes} *)
 
 val a_class : string -> 'msg attr
+val a_class_list : string list -> 'msg attr
 (** This attribute assigns a class name or set of class names to an
     element. Any number of elements may be assigned the same class
     name or names.  *)
@@ -79,6 +80,7 @@ val a_lang : string -> 'msg attr
 
     {4 Javascript events} *)
 
+val a_on : string -> 'msg event_handler -> 'msg attr
 val a_onabort : 'msg event_handler -> 'msg attr
 val a_onafterprint : 'msg event_handler -> 'msg attr
 val a_onbeforeprint : 'msg event_handler -> 'msg attr
@@ -159,13 +161,13 @@ val a_onkeyup : 'msg event_handler -> 'msg attr
 
 val a_autocomplete : (bool[@onoff]) -> 'msg attr
 
-val a_async : unit -> 'msg attr
+val a_async : bool -> 'msg attr
 
-val a_autofocus : unit -> 'msg attr
+val a_autofocus : bool -> 'msg attr
 
-val a_autoplay : unit -> 'msg attr
+val a_autoplay : bool -> 'msg attr
 
-val a_muted : unit -> 'msg attr
+val a_muted : bool -> 'msg attr
 
 val a_crossorigin : string -> 'msg attr
 
@@ -177,7 +179,7 @@ val a_contenteditable : bool -> 'msg attr
 
 val a_contextmenu : string -> 'msg attr
 
-val a_controls : unit -> 'msg attr
+val a_controls : bool -> 'msg attr
 
 val a_dir : string -> 'msg attr
 
@@ -189,23 +191,23 @@ val a_formaction : string -> 'msg attr
 
 val a_formenctype : string -> 'msg attr
 
-val a_formnovalidate : unit -> 'msg attr
+val a_formnovalidate : bool -> 'msg attr
 
 val a_formtarget : string -> 'msg attr
 
-val a_hidden : unit -> 'msg attr
+val a_hidden : bool -> 'msg attr
 
 val a_high : float -> 'msg attr
 
 val a_icon : string -> 'msg attr
 
-val a_ismap : unit -> 'msg attr
+val a_ismap : bool -> 'msg attr
 
 val a_keytype : string -> 'msg attr
 
 val a_list : string -> 'msg attr
 
-val a_loop : unit -> 'msg attr
+val a_loop : bool -> 'msg attr
 
 val a_low : float -> 'msg attr
 
@@ -219,9 +221,9 @@ val a_input_min : int -> 'msg attr
 
 val a_inputmode : string -> 'msg attr
 
-val a_novalidate : unit -> 'msg attr
+val a_novalidate : bool -> 'msg attr
 
-val a_open : unit -> 'msg attr
+val a_open : bool -> 'msg attr
 
 val a_optimum : float -> 'msg attr
 
@@ -233,21 +235,21 @@ val a_poster : string -> 'msg attr
 
 val a_preload : string -> 'msg attr
 
-val a_pubdate : unit -> 'msg attr
+val a_pubdate : bool -> 'msg attr
 
 val a_radiogroup : string -> 'msg attr
 
-val a_required : unit -> 'msg attr
+val a_required : bool -> 'msg attr
 
-val a_reversed : unit -> 'msg attr
+val a_reversed : bool -> 'msg attr
 
 val a_sandbox : string -> 'msg attr
 
 val a_spellcheck : bool -> 'msg attr
 
-val a_scoped : unit -> 'msg attr
+val a_scoped : bool -> 'msg attr
 
-val a_seamless : unit -> 'msg attr
+val a_seamless : bool -> 'msg attr
 
 val a_sizes : string -> 'msg attr
 
@@ -330,7 +332,7 @@ val a_action : string -> 'msg attr
 (** This attribute specifies a form processing agent. User agent
     behavior for a value other than an HTTP URI is undefined. *)
 
-val a_checked : unit -> 'msg attr
+val a_checked : bool -> 'msg attr
 (** When the [type] attribute has the value ["radio"] or
     ["checkbox"], this boolean attribute specifies that the
     button is on. User agents must ignore this attribute for
@@ -354,7 +356,7 @@ val a_maxlength : int -> 'msg attr
 val a_method :
   string -> 'msg attr
 
-val a_multiple : unit -> 'msg attr
+val a_multiple : bool -> 'msg attr
 
 val a_name : string -> 'msg attr
 (** This attribute assigns the control name. *)
@@ -366,7 +368,7 @@ val a_rows : int -> 'msg attr
     the contents of the control when the contents extend beyond
     the visible area. *)
 
-val a_selected : unit -> 'msg attr
+val a_selected : bool -> 'msg attr
 (** When set, this boolean attribute specifies that
     this option is pre-selected. *)
 
@@ -413,9 +415,9 @@ val a_value : string -> 'msg attr
 
 val a_float_value : float -> 'msg attr
 
-val a_disabled : unit -> 'msg attr
+val a_disabled : bool -> 'msg attr
 
-val a_readonly : unit -> 'msg attr
+val a_readonly : bool -> 'msg attr
 
 val a_button_type : input_type -> 'msg attr
 
@@ -454,7 +456,7 @@ val a_content : string -> 'msg attr
 
 val a_http_equiv : string -> 'msg attr
 
-val a_defer : unit -> 'msg attr
+val a_defer : bool -> 'msg attr
 
 val a_media : string -> 'msg attr
 

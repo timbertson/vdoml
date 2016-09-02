@@ -20,7 +20,7 @@ module Event = struct
   let response x = x.response
   let message x = x.message
 
-  let return response = {
+  let respond response = {
     response = response;
     message = None;
   }

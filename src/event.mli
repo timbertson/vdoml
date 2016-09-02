@@ -5,7 +5,7 @@ type 'msg result = 'msg Event_types_.result
 val response : 'msg result -> response
 val message : 'msg result -> 'msg option
 
-val return : response -> 'msg result
+val respond : response -> 'msg result
 
 val emit : ?response:response -> 'msg -> 'msg result
 val optional : 'msg result option -> 'msg result
