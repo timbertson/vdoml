@@ -1,3 +1,4 @@
+open Util_
 open Event_types_
 module Event = struct
   type 'msg result = 'msg Event_types_.result
@@ -39,6 +40,8 @@ module Event = struct
     message = None;
   }
 
+  let optional x = Option.default unhandled x
+
   let stop = {
     response = `Stop;
     message = None;
@@ -49,14 +52,16 @@ module Event = struct
     | Some x -> fn x
     | None -> unhandled
 
-  let mouse_event ev = lift (Dom_html.CoerceTo.mouseEvent) ev
-  let keyboard_event ev = lift (Dom_html.CoerceTo.keyboardEvent) ev
-  let input_contents ev = lift (fun ev ->
-    Js.Opt.map
-      (Js.Opt.bind (ev##.target) (fun target -> Dom_html.CoerceTo.input target))
-      (fun input -> Js.to_string (input##.value))
-  ) ev
+  let coerce coersion x = coersion x |> Js.Opt.to_option
 
+  let mouse_event e = coerce Dom_html.CoerceTo.mouseEvent e
+  let keyboard_event e = coerce Dom_html.CoerceTo.keyboardEvent e
+  let target e = coerce (fun e -> e##.target) e
+  let coerce_target coersion e = target e |> Option.bind (coerce coersion)
+
+  let input_contents ev =
+    coerce_target Dom_html.CoerceTo.input ev
+      |> Option.map (fun input -> Js.to_string (input##.value))
 
   let apply emit { response; message } =
     let () = match message with

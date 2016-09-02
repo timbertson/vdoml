@@ -1,4 +1,5 @@
 open Vdoml
+open Util_
 type model = string
 type message = string
 
@@ -6,13 +7,12 @@ let update _ newContent = newContent
 
 let view (instance: (model, message) Ui.instance) : model -> message Html.html =
 	let oninput event =
-		let input :Dom_html.inputElement Js.t =
-			Js.Opt.get
-				(Js.Opt.bind event##.currentTarget Dom_html.CoerceTo.input)
-				(fun () -> assert false) in
-		
-		Event.emit ~response:`Unhandled (Js.to_string input##.value)
+		let open Option in
+		Event.input_contents event
+			|> map (Event.emit ~response:`Unhandled)
+			|> Event.optional
 	in
+
 	fun state ->
 		let open Html in
 		div [

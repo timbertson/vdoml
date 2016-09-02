@@ -2,3 +2,22 @@ let identity x = x
 
 let (%) f g = fun x -> f (g x)
 
+module Option = struct
+  let map fn = function
+    | Some x -> Some (fn x)
+    | None -> None
+
+  let bind fn = function
+    | Some x -> fn x
+    | None -> None
+
+  let default d = function
+    | Some x -> x
+    | None -> d
+
+  let may fn = function
+    | Some x -> fn x
+    | None -> ()
+
+  let some x = Some x
+end

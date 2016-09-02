@@ -10,9 +10,9 @@ let update = fun current -> function
 let view instance state =
 	let open Html in
 	div [
-		button ~a:[a_onclick (emit Decrement)] [ text "-" ];
+		button ~a:[a_onclick (emitter Decrement)] [ text "-" ];
 		span [ text (string_of_int state) ];
-		button ~a:[a_onclick (emit Increment)] [ text "+" ];
+		button ~a:[a_onclick (emitter Increment)] [ text "+" ];
 	]
 
 let build init = Ui.component ~update ~view init
