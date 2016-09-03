@@ -1,3 +1,5 @@
+(** API for creating HTML structures *)
+
 type 'msg html = 'msg Vdom_.Vdom.html
 type 'msg attr = 'msg Attr_.Attr.optional
 type 'msg event_handler
