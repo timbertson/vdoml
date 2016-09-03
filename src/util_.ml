@@ -27,5 +27,5 @@ module Option = struct
 
   let filter pred = function
     | Some x as rv when pred x -> rv
-    | None -> None
+    | other -> None
 end

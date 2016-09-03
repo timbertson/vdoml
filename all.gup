@@ -2,5 +2,6 @@
 gup -u \
 	lib \
 	examples/all \
+	doc \
 	;
 

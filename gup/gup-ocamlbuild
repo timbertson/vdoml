@@ -1,8 +1,12 @@
 #!bash -eu
-OCAMLBUILD_FLAGS=""
-if test "${GUP_XTRACE:-0}" -eq 1; then
+FLAGS=()
+if test "${GUP_XTRACE:-0}" = 1; then
 	set -x
-	OCAMLBUILD_FLAGS="-verbose 3"
+	FLAGS+=(-verbose 3)
+fi
+
+if test "${OCAMLBUILD_FATAL_WARNINGS:-0}" = 1; then
+	FLAGS+=(-cflag -warn-error -cflag A)
 fi
 
 basedir="${2%_build/*}"
@@ -23,7 +27,7 @@ pushd "$basedir" >/dev/null
 if [ "$(basename "$(dirname "$(pwd)")")" = 'examples' ]; then
 	gup -u ../../lib
 fi
-ocamlbuild $OCAMLBUILD_FLAGS -use-ocamlfind -no-links "$target_name"
+ocamlbuild "${FLAGS[@]}" -use-ocamlfind -no-links "$target_name"
 popd >/dev/null
 gup --always
 gup --leave
