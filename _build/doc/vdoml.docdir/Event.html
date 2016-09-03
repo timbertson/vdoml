@@ -1,0 +1,51 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Collection_cache.html">
+<link rel="next" href="Curry.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class types" rel=Appendix href="index_class_types.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Ui" rel="Chapter" href="Ui.html">
+<link title="Html" rel="Chapter" href="Html.html">
+<link title="Collection_cache" rel="Chapter" href="Collection_cache.html">
+<link title="Event" rel="Chapter" href="Event.html">
+<link title="Curry" rel="Chapter" href="Curry.html"><title>Event</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Collection_cache.html" title="Collection_cache">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Curry.html" title="Curry">Next</a>
+</div>
+<h1>Module <a href="type_Event.html">Event</a></h1>
+
+<pre><span class="keyword">module</span> Event: <code class="code">sig</code> <a href="Event.html">..</a> <code class="code">end</code></pre><hr width="100%">
+
+<pre><span id="TYPEresponse"><span class="keyword">type</span> <code class="type"></code>response</span> = <code class="type">Event_types_.response</code> </pre>
+
+
+<pre><span id="TYPEbiggest_event"><span class="keyword">class type</span> <a href="Event.biggest_event-c.html">biggest_event</a></span> = <code class="type">Event_types_.biggest_event</code></pre>
+<pre><span id="TYPEresult"><span class="keyword">type</span> <code class="type">'msg</code> result</span> = <code class="type">'msg Event_types_.result</code> </pre>
+
+
+<pre><span id="VALget_response"><span class="keyword">val</span> get_response</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a> -> <a href="Event.html#TYPEresponse">response</a></code></pre>
+<pre><span id="VALget_message"><span class="keyword">val</span> get_message</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a> -> 'msg option</code></pre>
+<pre><span id="VALrespond"><span class="keyword">val</span> respond</span> : <code class="type"><a href="Event.html#TYPEresponse">response</a> -> 'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALhandle"><span class="keyword">val</span> handle</span> : <code class="type">'msg -> 'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALreturn"><span class="keyword">val</span> return</span> : <code class="type"><a href="Event.html#TYPEresponse">response</a> -> 'msg -> 'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALhandled"><span class="keyword">val</span> handled</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALunhandled"><span class="keyword">val</span> unhandled</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALstop"><span class="keyword">val</span> stop</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALoptional"><span class="keyword">val</span> optional</span> : <code class="type">'msg <a href="Event.html#TYPEresult">result</a> option -> 'msg <a href="Event.html#TYPEresult">result</a></code></pre>
+<pre><span id="VALmouse_event"><span class="keyword">val</span> mouse_event</span> : <code class="type">#Dom_html.event Js.t -> Dom_html.mouseEvent Js.t option</code></pre>
+<pre><span id="VALkeyboard_event"><span class="keyword">val</span> keyboard_event</span> : <code class="type">#Dom_html.event Js.t -> Dom_html.keyboardEvent Js.t option</code></pre>
+<pre><span id="VALtarget"><span class="keyword">val</span> target</span> : <code class="type">#Dom_html.event Js.t -> Dom_html.element Js.t option</code></pre>
+<pre><span id="VALcoerce"><span class="keyword">val</span> coerce</span> : <code class="type">('a -> 'b Js.Opt.t) -> 'a -> 'b option</code></pre>
+<pre><span id="VALcoerce_target"><span class="keyword">val</span> coerce_target</span> : <code class="type">(Dom_html.element Js.t -> 'a Js.t Js.opt) -><br>       <a href="Event.biggest_event-c.html">biggest_event</a> Js.t -> 'a Js.t option</code></pre>
+<pre><span id="VALinput_contents"><span class="keyword">val</span> input_contents</span> : <code class="type"><a href="Event.biggest_event-c.html">biggest_event</a> Js.t -> string option</code></pre></body></html>

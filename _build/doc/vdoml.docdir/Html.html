@@ -1,0 +1,542 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="previous" href="Ui.html">
+<link rel="next" href="Collection_cache.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of class types" rel=Appendix href="index_class_types.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Ui" rel="Chapter" href="Ui.html">
+<link title="Html" rel="Chapter" href="Html.html">
+<link title="Collection_cache" rel="Chapter" href="Collection_cache.html">
+<link title="Event" rel="Chapter" href="Event.html">
+<link title="Curry" rel="Chapter" href="Curry.html"><link title="Attributes" rel="Section" href="#attributes">
+<link title="Elements" rel="Section" href="#elements">
+<link title="I18N" rel="Subsection" href="#3_I18N">
+<link title="Events" rel="Subsection" href="#3_Events">
+<link title="Other attributes" rel="Subsection" href="#3_Otherattributes">
+<link title="Section" rel="Subsection" href="#3_Section">
+<link title="Grouping content" rel="Subsection" href="#3_Groupingcontent">
+<link title="Semantic" rel="Subsection" href="#3_Semantic">
+<link title="Hypertext" rel="Subsection" href="#3_Hypertext">
+<link title="Edit" rel="Subsection" href="#3_Edit">
+<link title="Embedded" rel="Subsection" href="#3_Embedded">
+<link title="Tables Data" rel="Subsection" href="#3_TablesData">
+<link title="Forms" rel="Subsection" href="#3_Forms">
+<link title="Data" rel="Subsection" href="#3_Data">
+<link title="Interactive" rel="Subsection" href="#3_Interactive">
+<link title="Scripting" rel="Subsection" href="#3_Scripting">
+<link title="Style Sheets" rel="Subsection" href="#3_StyleSheets">
+<link title="Ruby" rel="Subsection" href="#3_Ruby">
+<title>Html</title>
+</head>
+<body>
+<div class="navbar"><a class="pre" href="Ui.html" title="Ui">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Collection_cache.html" title="Collection_cache">Next</a>
+</div>
+<h1>Module <a href="type_Html.html">Html</a></h1>
+
+<pre><span class="keyword">module</span> Html: <code class="code">sig</code> <a href="Html.html">..</a> <code class="code">end</code></pre><div class="info module top">
+API for creating HTML structures<br>
+</div>
+<hr width="100%">
+
+<pre><span id="TYPEhtml"><span class="keyword">type</span> <code class="type">'msg</code> html</span> = <code class="type">'msg Vdom_.Vdom.html</code> </pre>
+
+
+<pre><span id="TYPEattr"><span class="keyword">type</span> <code class="type">'msg</code> attr</span> = <code class="type">'msg Attr_.Attr.optional</code> </pre>
+
+
+<pre><span id="TYPEevent_handler"><span class="keyword">type</span> <code class="type">'msg</code> event_handler</span> </pre>
+
+
+<pre><span id="VALemitter"><span class="keyword">val</span> emitter</span> : <code class="type">?response:<a href="Event.html#TYPEresponse">Event.response</a> -> 'msg -> 'msg <a href="Html.html#TYPEevent_handler">event_handler</a></code></pre>
+<pre><span id="VALhandler"><span class="keyword">val</span> handler</span> : <code class="type">(<a href="Event.biggest_event-c.html">Event.biggest_event</a> Js.t -> 'msg <a href="Event.html#TYPEresult">Event.result</a>) -> 'msg <a href="Html.html#TYPEevent_handler">event_handler</a></code></pre>
+<pre><span id="TYPEnullary"><span class="keyword">type</span> <code class="type">'a</code> nullary</span> = <code class="type">?a:'a <a href="Html.html#TYPEattr">attr</a> list -> unit -> 'a <a href="Html.html#TYPEhtml">html</a></code> </pre>
+<div class="info ">
+A nullary element is an element that doesn't have any children.<br>
+</div>
+
+
+<pre><span id="TYPEunary"><span class="keyword">type</span> <code class="type">'a</code> unary</span> = <code class="type">?a:'a <a href="Html.html#TYPEattr">attr</a> list -> 'a <a href="Html.html#TYPEhtml">html</a> -> 'a <a href="Html.html#TYPEhtml">html</a></code> </pre>
+<div class="info ">
+A unary element is an element that have exactly one children.<br>
+</div>
+
+
+<pre><span id="TYPEstar"><span class="keyword">type</span> <code class="type">'a</code> star</span> = <code class="type">?a:'a <a href="Html.html#TYPEattr">attr</a> list -> 'a <a href="Html.html#TYPEhtml">html</a> list -> 'a <a href="Html.html#TYPEhtml">html</a></code> </pre>
+<div class="info ">
+A star element is an element that has any number of children, including zero.<br>
+</div>
+
+<br>
+<h2 id="attributes">Attributes</h2><br>
+
+<pre><span id="VALa_class"><span class="keyword">val</span> a_class</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_class_list"><span class="keyword">val</span> a_class_list</span> : <code class="type">string list -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute assigns a class name or set of class names to an
+    element. Any number of elements may be assigned the same class
+    name or names.<br>
+</div>
+
+<pre><span id="VALa_user_data"><span class="keyword">val</span> a_user_data</span> : <code class="type">string -> string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+May be used to specify custom attributes.
+    The example given by the W3C is as follows :
+    <pre class="verbatim">&lt;ol&gt;
+&lt;li data-length="2m11s"&gt;Beyond The Sea&lt;/li&gt;
+&lt;/ol&gt;</pre>
+    It should be used for preprocessing ends only.<br>
+</div>
+
+<pre><span id="VALa_id"><span class="keyword">val</span> a_id</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute assigns a name to an element. This name must be
+    unique in a document. The string should be without any space.<br>
+</div>
+
+<pre><span id="VALa_title"><span class="keyword">val</span> a_title</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute offers advisory information about the element for
+    which it is set.
+<p>
+
+    Values of the title attribute may be rendered by user agents in a
+    variety of ways. For instance, visual browsers frequently display
+    the title as a <i>tool tip</i> (a short message that appears when the
+    pointing device pauses over an object). Audio user agents may
+    speak the title information in a similar context.
+<p>
+
+    The title attribute has an additional role when used with the <code class="code">link</code>
+    element to designate an external style sheet. Please consult the
+    section on links and style sheets for details.<br>
+</div>
+<br>
+<h3 id="3_I18N">I18N</h3><br>
+
+<pre><span id="VALa_xml_lang"><span class="keyword">val</span> a_xml_lang</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_lang"><span class="keyword">val</span> a_lang</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><br>
+<h3 id="3_Events">Events</h3>
+<p>
+
+    <h4 id="4_Javascriptevents">Javascript events</h4><br>
+
+<pre><span id="VALa_on"><span class="keyword">val</span> a_on</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onabort"><span class="keyword">val</span> a_onabort</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onafterprint"><span class="keyword">val</span> a_onafterprint</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onbeforeprint"><span class="keyword">val</span> a_onbeforeprint</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onbeforeunload"><span class="keyword">val</span> a_onbeforeunload</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onblur"><span class="keyword">val</span> a_onblur</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_oncanplay"><span class="keyword">val</span> a_oncanplay</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_oncanplaythrough"><span class="keyword">val</span> a_oncanplaythrough</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onchange"><span class="keyword">val</span> a_onchange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondurationchange"><span class="keyword">val</span> a_ondurationchange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onemptied"><span class="keyword">val</span> a_onemptied</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onended"><span class="keyword">val</span> a_onended</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onerror"><span class="keyword">val</span> a_onerror</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onfocus"><span class="keyword">val</span> a_onfocus</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onformchange"><span class="keyword">val</span> a_onformchange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onforminput"><span class="keyword">val</span> a_onforminput</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onhashchange"><span class="keyword">val</span> a_onhashchange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_oninput"><span class="keyword">val</span> a_oninput</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_oninvalid"><span class="keyword">val</span> a_oninvalid</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmousewheel"><span class="keyword">val</span> a_onmousewheel</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onoffline"><span class="keyword">val</span> a_onoffline</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ononline"><span class="keyword">val</span> a_ononline</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onpause"><span class="keyword">val</span> a_onpause</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onplay"><span class="keyword">val</span> a_onplay</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onplaying"><span class="keyword">val</span> a_onplaying</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onpagehide"><span class="keyword">val</span> a_onpagehide</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onpageshow"><span class="keyword">val</span> a_onpageshow</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onpopstate"><span class="keyword">val</span> a_onpopstate</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onprogress"><span class="keyword">val</span> a_onprogress</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onratechange"><span class="keyword">val</span> a_onratechange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onreadystatechange"><span class="keyword">val</span> a_onreadystatechange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onredo"><span class="keyword">val</span> a_onredo</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onresize"><span class="keyword">val</span> a_onresize</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onscroll"><span class="keyword">val</span> a_onscroll</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onseeked"><span class="keyword">val</span> a_onseeked</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onseeking"><span class="keyword">val</span> a_onseeking</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onselect"><span class="keyword">val</span> a_onselect</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onshow"><span class="keyword">val</span> a_onshow</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onstalled"><span class="keyword">val</span> a_onstalled</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onstorage"><span class="keyword">val</span> a_onstorage</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onsubmit"><span class="keyword">val</span> a_onsubmit</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onsuspend"><span class="keyword">val</span> a_onsuspend</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ontimeupdate"><span class="keyword">val</span> a_ontimeupdate</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onundo"><span class="keyword">val</span> a_onundo</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onunload"><span class="keyword">val</span> a_onunload</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onvolumechange"><span class="keyword">val</span> a_onvolumechange</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onwaiting"><span class="keyword">val</span> a_onwaiting</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onload"><span class="keyword">val</span> a_onload</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onloadeddata"><span class="keyword">val</span> a_onloadeddata</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onloadedmetadata"><span class="keyword">val</span> a_onloadedmetadata</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onloadstart"><span class="keyword">val</span> a_onloadstart</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmessage"><span class="keyword">val</span> a_onmessage</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><br>
+<h4 id="4_Mouseevents">Mouse events</h4><br>
+
+<pre><span id="VALa_onclick"><span class="keyword">val</span> a_onclick</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_oncontextmenu"><span class="keyword">val</span> a_oncontextmenu</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondblclick"><span class="keyword">val</span> a_ondblclick</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondrag"><span class="keyword">val</span> a_ondrag</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondragend"><span class="keyword">val</span> a_ondragend</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondragenter"><span class="keyword">val</span> a_ondragenter</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondragleave"><span class="keyword">val</span> a_ondragleave</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondragover"><span class="keyword">val</span> a_ondragover</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondragstart"><span class="keyword">val</span> a_ondragstart</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ondrop"><span class="keyword">val</span> a_ondrop</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmousedown"><span class="keyword">val</span> a_onmousedown</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmouseup"><span class="keyword">val</span> a_onmouseup</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmouseover"><span class="keyword">val</span> a_onmouseover</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmousemove"><span class="keyword">val</span> a_onmousemove</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onmouseout"><span class="keyword">val</span> a_onmouseout</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><br>
+<h4 id="4_Keyboardevents">Keyboard events</h4><br>
+
+<pre><span id="VALa_onkeypress"><span class="keyword">val</span> a_onkeypress</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onkeydown"><span class="keyword">val</span> a_onkeydown</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_onkeyup"><span class="keyword">val</span> a_onkeyup</span> : <code class="type">'msg <a href="Html.html#TYPEevent_handler">event_handler</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><br>
+<h3 id="3_Otherattributes">Other attributes</h3><br>
+
+<pre><span id="VALa_autocomplete"><span class="keyword">val</span> a_autocomplete</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_async"><span class="keyword">val</span> a_async</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_autofocus"><span class="keyword">val</span> a_autofocus</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_autoplay"><span class="keyword">val</span> a_autoplay</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_muted"><span class="keyword">val</span> a_muted</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_crossorigin"><span class="keyword">val</span> a_crossorigin</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_mediagroup"><span class="keyword">val</span> a_mediagroup</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_challenge"><span class="keyword">val</span> a_challenge</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_contenteditable"><span class="keyword">val</span> a_contenteditable</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_contextmenu"><span class="keyword">val</span> a_contextmenu</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_controls"><span class="keyword">val</span> a_controls</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_dir"><span class="keyword">val</span> a_dir</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_draggable"><span class="keyword">val</span> a_draggable</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_form"><span class="keyword">val</span> a_form</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_formaction"><span class="keyword">val</span> a_formaction</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_formenctype"><span class="keyword">val</span> a_formenctype</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_formnovalidate"><span class="keyword">val</span> a_formnovalidate</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_formtarget"><span class="keyword">val</span> a_formtarget</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_hidden"><span class="keyword">val</span> a_hidden</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_high"><span class="keyword">val</span> a_high</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_icon"><span class="keyword">val</span> a_icon</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_ismap"><span class="keyword">val</span> a_ismap</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_keytype"><span class="keyword">val</span> a_keytype</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_list"><span class="keyword">val</span> a_list</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_loop"><span class="keyword">val</span> a_loop</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_low"><span class="keyword">val</span> a_low</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_max"><span class="keyword">val</span> a_max</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_input_max"><span class="keyword">val</span> a_input_max</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_min"><span class="keyword">val</span> a_min</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_input_min"><span class="keyword">val</span> a_input_min</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_inputmode"><span class="keyword">val</span> a_inputmode</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_novalidate"><span class="keyword">val</span> a_novalidate</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_open"><span class="keyword">val</span> a_open</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_optimum"><span class="keyword">val</span> a_optimum</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_pattern"><span class="keyword">val</span> a_pattern</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_placeholder"><span class="keyword">val</span> a_placeholder</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_poster"><span class="keyword">val</span> a_poster</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_preload"><span class="keyword">val</span> a_preload</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_pubdate"><span class="keyword">val</span> a_pubdate</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_radiogroup"><span class="keyword">val</span> a_radiogroup</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_required"><span class="keyword">val</span> a_required</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_reversed"><span class="keyword">val</span> a_reversed</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_sandbox"><span class="keyword">val</span> a_sandbox</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_spellcheck"><span class="keyword">val</span> a_spellcheck</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_scoped"><span class="keyword">val</span> a_scoped</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_seamless"><span class="keyword">val</span> a_seamless</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_sizes"><span class="keyword">val</span> a_sizes</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_span"><span class="keyword">val</span> a_span</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_srcset"><span class="keyword">val</span> a_srcset</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_start"><span class="keyword">val</span> a_start</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_step"><span class="keyword">val</span> a_step</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_wrap"><span class="keyword">val</span> a_wrap</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_version"><span class="keyword">val</span> a_version</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_xmlns"><span class="keyword">val</span> a_xmlns</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_manifest"><span class="keyword">val</span> a_manifest</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_cite"><span class="keyword">val</span> a_cite</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_xml_space"><span class="keyword">val</span> a_xml_space</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_accesskey"><span class="keyword">val</span> a_accesskey</span> : <code class="type">char -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute assigns an access key to an element. An access key
+    is a single character from the document character
+    set. NB: authors should consider the input method of the
+    expected reader when specifying an accesskey.<br>
+</div>
+
+<pre><span id="VALa_charset"><span class="keyword">val</span> a_charset</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the character encoding of the resource
+    designated by the link. Please consult the section on character
+    encodings for more details.<br>
+</div>
+
+<pre><span id="VALa_accept_charset"><span class="keyword">val</span> a_accept_charset</span> : <code class="type">string list -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_accept"><span class="keyword">val</span> a_accept</span> : <code class="type">string list -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_href"><span class="keyword">val</span> a_href</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the location of a Web resource, thus
+    defining a link between the current element (the source anchor)
+    and the destination anchor defined by this attribute.<br>
+</div>
+
+<pre><span id="VALa_hreflang"><span class="keyword">val</span> a_hreflang</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the base language of the resource
+    designated by href and may only be used when href is specified.<br>
+</div>
+
+<pre><span id="VALa_download"><span class="keyword">val</span> a_download</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_rel"><span class="keyword">val</span> a_rel</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute describes the relationship from the current
+    document to the anchor specified by the href attribute. The
+    value of this attribute is a space-separated list of link
+    types.<br>
+</div>
+<br>
+This attribute is used to describe a reverse link from the
+    anchor specified by the href attribute to the current
+    document. The value of this attribute is a space-separated
+    list of link types.<br>
+
+<pre><span id="VALa_tabindex"><span class="keyword">val</span> a_tabindex</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the position of the current
+    element in the tabbing order for the current document. This
+    value must be a number between 0 and 32767. User agents
+    should ignore leading zeros.<br>
+</div>
+
+<pre><span id="VALa_mime_type"><span class="keyword">val</span> a_mime_type</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute gives an advisory hint as to the content type
+    of the content available at the link target address. It
+    allows user agents to opt to use a fallback mechanism rather
+    than fetch the content if they are advised that they will
+    get content in a content type they do not support.Authors
+    who use this attribute take responsibility to manage the
+    risk that it may become inconsistent with the content
+    available at the link target address.<br>
+</div>
+
+<pre><span id="VALa_datetime"><span class="keyword">val</span> a_datetime</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_action"><span class="keyword">val</span> a_action</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies a form processing agent. User agent
+    behavior for a value other than an HTTP URI is undefined.<br>
+</div>
+
+<pre><span id="VALa_checked"><span class="keyword">val</span> a_checked</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+When the <code class="code">type</code> attribute has the value <code class="code">"radio"</code> or
+    <code class="code">"checkbox"</code>, this boolean attribute specifies that the
+    button is on. User agents must ignore this attribute for
+    other control types.<br>
+</div>
+
+<pre><span id="VALa_cols"><span class="keyword">val</span> a_cols</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the visible width in average
+    character widths. Users should be able to enter longer lines
+    than this, so user agents should provide some means to
+    scroll through the contents of the control when the contents
+    extend beyond the visible area. User agents may visible
+    string lines to keep long lines visible without the need for
+    scrolling.<br>
+</div>
+
+<pre><span id="VALa_enctype"><span class="keyword">val</span> a_enctype</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_for"><span class="keyword">val</span> a_for</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_maxlength"><span class="keyword">val</span> a_maxlength</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_method"><span class="keyword">val</span> a_method</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_multiple"><span class="keyword">val</span> a_multiple</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_name"><span class="keyword">val</span> a_name</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute assigns the control name.<br>
+</div>
+
+<pre><span id="VALa_rows"><span class="keyword">val</span> a_rows</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the number of visible string
+    lines. Users should be able to enter more lines than this,
+    so user agents should provide some means to scroll through
+    the contents of the control when the contents extend beyond
+    the visible area.<br>
+</div>
+
+<pre><span id="VALa_selected"><span class="keyword">val</span> a_selected</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+When set, this boolean attribute specifies that
+    this option is pre-selected.<br>
+</div>
+
+<pre><span id="VALa_size"><span class="keyword">val</span> a_size</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_src"><span class="keyword">val</span> a_src</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="TYPEinput_type"><span class="keyword">type</span> <code class="type"></code>input_type</span> = <code class="type">[ `Button<br>       | `Checkbox<br>       | `Color<br>       | `Date<br>       | `Datetime<br>       | `Datetime_local<br>       | `Email<br>       | `File<br>       | `Hidden<br>       | `Image<br>       | `Month<br>       | `Number<br>       | `Password<br>       | `Radio<br>       | `Range<br>       | `Reset<br>       | `Search<br>       | `Submit<br>       | `Tel<br>       | `Text<br>       | `Time<br>       | `Url<br>       | `Week ]</code> </pre>
+
+
+<pre><span id="VALa_input_type"><span class="keyword">val</span> a_input_type</span> : <code class="type"><a href="Html.html#TYPEinput_type">input_type</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_text_value"><span class="keyword">val</span> a_text_value</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><div class="info ">
+This attribute specifies the initial value of the
+    control. If this attribute is not set, the initial value is
+    set to the contents of the <code class="code">option</code> element.<br>
+</div>
+
+<pre><span id="VALa_int_value"><span class="keyword">val</span> a_int_value</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_value"><span class="keyword">val</span> a_value</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_float_value"><span class="keyword">val</span> a_float_value</span> : <code class="type">float -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_disabled"><span class="keyword">val</span> a_disabled</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_readonly"><span class="keyword">val</span> a_readonly</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_button_type"><span class="keyword">val</span> a_button_type</span> : <code class="type"><a href="Html.html#TYPEinput_type">input_type</a> -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_command_type"><span class="keyword">val</span> a_command_type</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_menu_type"><span class="keyword">val</span> a_menu_type</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_label"><span class="keyword">val</span> a_label</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_colspan"><span class="keyword">val</span> a_colspan</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_headers"><span class="keyword">val</span> a_headers</span> : <code class="type">string list -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_rowspan"><span class="keyword">val</span> a_rowspan</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_alt"><span class="keyword">val</span> a_alt</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_height"><span class="keyword">val</span> a_height</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_width"><span class="keyword">val</span> a_width</span> : <code class="type">int -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_shape"><span class="keyword">val</span> a_shape</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_coords"><span class="keyword">val</span> a_coords</span> : <code class="type">int list -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_usemap"><span class="keyword">val</span> a_usemap</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_data"><span class="keyword">val</span> a_data</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_scrolling"><span class="keyword">val</span> a_scrolling</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_target"><span class="keyword">val</span> a_target</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_content"><span class="keyword">val</span> a_content</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_http_equiv"><span class="keyword">val</span> a_http_equiv</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_defer"><span class="keyword">val</span> a_defer</span> : <code class="type">bool -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_media"><span class="keyword">val</span> a_media</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_style"><span class="keyword">val</span> a_style</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre>
+<pre><span id="VALa_property"><span class="keyword">val</span> a_property</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEattr">attr</a></code></pre><br>
+<h2 id="elements">Elements</h2><br>
+
+<pre><span id="VALhtml"><span class="keyword">val</span> html</span> : <code class="type">?a:'msg <a href="Html.html#TYPEattr">attr</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre>
+<pre><span id="VALhead"><span class="keyword">val</span> head</span> : <code class="type">?a:'msg <a href="Html.html#TYPEattr">attr</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre>
+<pre><span id="VALbase"><span class="keyword">val</span> base</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALtitle"><span class="keyword">val</span> title</span> : <code class="type">'msg <a href="Html.html#TYPEunary">unary</a></code></pre>
+<pre><span id="VALbody"><span class="keyword">val</span> body</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsvg"><span class="keyword">val</span> svg</span> : <code class="type">?a:'msg <a href="Html.html#TYPEattr">attr</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a> list -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre><br>
+<h3 id="3_Section">Section</h3><br>
+
+<pre><span id="VALfooter"><span class="keyword">val</span> footer</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALheader"><span class="keyword">val</span> header</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsection"><span class="keyword">val</span> section</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALnav"><span class="keyword">val</span> nav</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh1"><span class="keyword">val</span> h1</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh2"><span class="keyword">val</span> h2</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh3"><span class="keyword">val</span> h3</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh4"><span class="keyword">val</span> h4</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh5"><span class="keyword">val</span> h5</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALh6"><span class="keyword">val</span> h6</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALhgroup"><span class="keyword">val</span> hgroup</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALaddress"><span class="keyword">val</span> address</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALarticle"><span class="keyword">val</span> article</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALaside"><span class="keyword">val</span> aside</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALmain"><span class="keyword">val</span> main</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Groupingcontent">Grouping content</h3><br>
+
+<pre><span id="VALp"><span class="keyword">val</span> p</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALpre"><span class="keyword">val</span> pre</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALblockquote"><span class="keyword">val</span> blockquote</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdiv"><span class="keyword">val</span> div</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdl"><span class="keyword">val</span> dl</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALol"><span class="keyword">val</span> ol</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALul"><span class="keyword">val</span> ul</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdd"><span class="keyword">val</span> dd</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdt"><span class="keyword">val</span> dt</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALli"><span class="keyword">val</span> li</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALfigcaption"><span class="keyword">val</span> figcaption</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALfigure"><span class="keyword">val</span> figure</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALhr"><span class="keyword">val</span> hr</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre><br>
+<h3 id="3_Semantic">Semantic</h3><br>
+
+<pre><span id="VALb"><span class="keyword">val</span> b</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALi"><span class="keyword">val</span> i</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALu"><span class="keyword">val</span> u</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsmall"><span class="keyword">val</span> small</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsub"><span class="keyword">val</span> sub</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsup"><span class="keyword">val</span> sup</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALmark"><span class="keyword">val</span> mark</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALwbr"><span class="keyword">val</span> wbr</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALbdo"><span class="keyword">val</span> bdo</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALabbr"><span class="keyword">val</span> abbr</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALbr"><span class="keyword">val</span> br</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALcite"><span class="keyword">val</span> cite</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALcode"><span class="keyword">val</span> code</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdfn"><span class="keyword">val</span> dfn</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALem"><span class="keyword">val</span> em</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALkbd"><span class="keyword">val</span> kbd</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALq"><span class="keyword">val</span> q</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsamp"><span class="keyword">val</span> samp</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALspan"><span class="keyword">val</span> span</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALstrong"><span class="keyword">val</span> strong</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtime"><span class="keyword">val</span> time</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALvar"><span class="keyword">val</span> var</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Hypertext">Hypertext</h3><br>
+
+<pre><span id="VALa"><span class="keyword">val</span> a</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Edit">Edit</h3><br>
+
+<pre><span id="VALdel"><span class="keyword">val</span> del</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALins"><span class="keyword">val</span> ins</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Embedded">Embedded</h3><br>
+
+<pre><span id="VALimg"><span class="keyword">val</span> img</span> : <code class="type">src:string -> 'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALiframe"><span class="keyword">val</span> iframe</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALobject_"><span class="keyword">val</span> object_</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALparam"><span class="keyword">val</span> param</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALembed"><span class="keyword">val</span> embed</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALaudio"><span class="keyword">val</span> audio</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALvideo"><span class="keyword">val</span> video</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALcanvas"><span class="keyword">val</span> canvas</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsource"><span class="keyword">val</span> source</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALarea"><span class="keyword">val</span> area</span> : <code class="type">alt:string -> 'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALmap"><span class="keyword">val</span> map</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_TablesData">Tables Data</h3><br>
+
+<pre><span id="VALcaption"><span class="keyword">val</span> caption</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtable"><span class="keyword">val</span> table</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALcolgroup"><span class="keyword">val</span> colgroup</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALcol"><span class="keyword">val</span> col</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALthead"><span class="keyword">val</span> thead</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtbody"><span class="keyword">val</span> tbody</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtfoot"><span class="keyword">val</span> tfoot</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtd"><span class="keyword">val</span> td</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALth"><span class="keyword">val</span> th</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALtr"><span class="keyword">val</span> tr</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Forms">Forms</h3><br>
+
+<pre><span id="VALform"><span class="keyword">val</span> form</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALfieldset"><span class="keyword">val</span> fieldset</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALlegend"><span class="keyword">val</span> legend</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALlabel"><span class="keyword">val</span> label</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALinput"><span class="keyword">val</span> input</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALbutton"><span class="keyword">val</span> button</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALselect"><span class="keyword">val</span> select</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALdatalist"><span class="keyword">val</span> datalist</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALoptgroup"><span class="keyword">val</span> optgroup</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALoption"><span class="keyword">val</span> option</span> : <code class="type">'msg <a href="Html.html#TYPEunary">unary</a></code></pre>
+<pre><span id="VALtextarea"><span class="keyword">val</span> textarea</span> : <code class="type">'msg <a href="Html.html#TYPEunary">unary</a></code></pre>
+<pre><span id="VALkeygen"><span class="keyword">val</span> keygen</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre>
+<pre><span id="VALprogress"><span class="keyword">val</span> progress</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALmeter"><span class="keyword">val</span> meter</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALoutput_elt"><span class="keyword">val</span> output_elt</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Data">Data</h3><br>
+
+<pre><span id="VALtext"><span class="keyword">val</span> text</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre>
+<pre><span id="VALentity"><span class="keyword">val</span> entity</span> : <code class="type">string -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre>
+<pre><span id="VALspace"><span class="keyword">val</span> space</span> : <code class="type">unit -> 'msg <a href="Html.html#TYPEhtml">html</a></code></pre><br>
+<h3 id="3_Interactive">Interactive</h3><br>
+
+<pre><span id="VALdetails"><span class="keyword">val</span> details</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALsummary"><span class="keyword">val</span> summary</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALmenu"><span class="keyword">val</span> menu</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre><br>
+<h3 id="3_Scripting">Scripting</h3><br>
+
+<pre><span id="VALscript"><span class="keyword">val</span> script</span> : <code class="type">'msg <a href="Html.html#TYPEunary">unary</a></code></pre>
+<pre><span id="VALnoscript"><span class="keyword">val</span> noscript</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALmeta"><span class="keyword">val</span> meta</span> : <code class="type">'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre><br>
+<h3 id="3_StyleSheets">Style Sheets</h3><br>
+
+<pre><span id="VALstyle"><span class="keyword">val</span> style</span> : <code class="type">'msg <a href="Html.html#TYPEunary">unary</a></code></pre>
+<pre><span id="VALlink"><span class="keyword">val</span> link</span> : <code class="type">href:string -> 'msg <a href="Html.html#TYPEnullary">nullary</a></code></pre><br>
+<h3 id="3_Ruby">Ruby</h3><br>
+
+<pre><span id="VALrt"><span class="keyword">val</span> rt</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALrp"><span class="keyword">val</span> rp</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALruby"><span class="keyword">val</span> ruby</span> : <code class="type">'msg <a href="Html.html#TYPEstar">star</a></code></pre>
+<pre><span id="VALonoff_of_bool"><span class="keyword">val</span> onoff_of_bool</span> : <code class="type">bool -> string</code></pre>
+<pre><span id="VALstring_of_input_type"><span class="keyword">val</span> string_of_input_type</span> : <code class="type"><a href="Html.html#TYPEinput_type">input_type</a> -> string</code></pre>
+<pre><span id="VALstring_of_numbers"><span class="keyword">val</span> string_of_numbers</span> : <code class="type">int list -> string</code></pre></body></html>
