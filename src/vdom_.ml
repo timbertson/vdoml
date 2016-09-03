@@ -79,7 +79,7 @@ module Vdom = struct
         e_children: 'msg node list;
       }
 
-    and 'msg pure_element = 
+    and 'msg pure_element =
       {
         e_pure_name : string;
         e_pure_attrs: 'msg Attr.value AttrMap.t;
