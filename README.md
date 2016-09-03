@@ -4,7 +4,7 @@
 
 Vdoml provides an elm-like (also react+flux-like) UI library for OCaml.
 
-It's already possible to build reactive HTML using [dbuenzli/react](http://erratique.ch/software/react) (note: _nothing like_ Facwbook's react) with Tyxml_js. But that can get awkward with interconnected networks of signals, which are hard to debug and force you to architect your code in particular ways to avoid lots of unnecessary rendering work.
+It's already possible to build reactive HTML using [dbuenzli/react](http://erratique.ch/software/react) (note: _nothing like_ Facebook's react) with Tyxml_js. But that can get awkward with interconnected networks of signals, which are hard to debug and force you to architect your code in particular ways to avoid lots of unnecessary rendering work.
 
 By including a VDOM algorithm, the rendering and update code can be made (more or less) pure and stateless, which should be easier to reason about and test, while taking advantage of immutability to cut out unnecessary re-rendering.
 
