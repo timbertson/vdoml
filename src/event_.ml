@@ -17,15 +17,20 @@ module Event = struct
 
   type 'msg handler = biggest_event Js.t -> 'msg result
 
-  let response x = x.response
-  let message x = x.message
+  let get_response x = x.response
+  let get_message x = x.message
 
   let respond response = {
     response = response;
     message = None;
   }
 
-  let emit ?(response=`Handled) msg = {
+  let handle msg = {
+    response = `Handled;
+    message = Some msg;
+  }
+
+  let return response msg = {
     response = response;
     message = Some msg;
   }

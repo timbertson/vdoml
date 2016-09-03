@@ -1,4 +1,5 @@
 open Vdoml
+open Util_
 
 (* create a Hook module which registers all vdom-created elements with mdl's componentHandler *)
 module Mdl_dom : Ui_f.DOM_HOOKS = struct
@@ -35,9 +36,9 @@ module App = struct
 
 	let view_item instance =
 		let update = Ui.bind instance (fun item evt ->
-				Event.input_contents evt (fun contents ->
-					Event.emit ~response:`Unhandled (Edit (item.id, contents))
-				)
+				Event.input_contents evt |> Option.map (fun contents ->
+					Event.return `Unhandled (Edit (item.id, contents))
+				) |> Event.optional
 			) in
 
 		fun { id; name } ->

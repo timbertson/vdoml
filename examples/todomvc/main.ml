@@ -238,10 +238,10 @@ module App = struct
       let onchange = handler (fun evt ->
         Event.input_contents evt |> Option.map (fun text ->
           Log.info(fun m -> m "input changed to: %s" text);
-          Event.emit ~response:`Unhandled (Update_field text)
+          Event.return `Unhandled (Update_field text)
         ) |> Event.optional
       ) in
-      let onkeydown = handler (when_return_key (fun _ -> Event.emit Add)) in
+      let onkeydown = handler (when_return_key (fun _ -> Event.handle Add)) in
     fun task ->
       header ~a: [a_class "header"] [
         h1 [ text "todos" ];
@@ -264,12 +264,12 @@ module App = struct
       let open Ui in
       let toggle_class name value = if value then a_class name else None in
       let cancel_editing = Ui.bind instance (fun entry _event ->
-        Event.emit (Modify (entry.id, Editing false))
+        Event.handle (Modify (entry.id, Editing false))
       ) in
       let onkeydown = when_return_key cancel_editing in
       let rename = Ui.bind instance (fun entry e ->
         Event.input_contents e |> Option.map (fun text ->
-          Event.emit ~response:`Unhandled (Modify (entry.id, Rename text))
+          Event.return `Unhandled (Modify (entry.id, Rename text))
         ) |> Event.optional
       ) in
       let toggle_check entry = Modify (entry.id, Toggle_check) in
@@ -319,7 +319,7 @@ module App = struct
       in
       let all_completed entries = List.all Entry.is_completed entries in
       let toggle_all = Ui.bind instance (fun state _evt ->
-        Event.emit ~response:`Unhandled (Check_all (not (all_completed state.entries)))
+        Event.return `Unhandled (Check_all (not (all_completed state.entries)))
       ) in
       fun visibility ->
         let is_visible = match visibility with

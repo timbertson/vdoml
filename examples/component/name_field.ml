@@ -9,7 +9,7 @@ let view (instance: (model, message) Ui.instance) : model -> message Html.html =
 	let oninput event =
 		let open Option in
 		Event.input_contents event
-			|> map (Event.emit ~response:`Unhandled)
+			|> map (Event.return `Unhandled)
 			|> Event.optional
 	in
 
