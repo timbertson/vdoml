@@ -1,5 +1,7 @@
 /examples_reference/
 /js/
-_build/
+/_build/*
+/examples/*/_build
+/test/_build
 node_modules/
 /lib/vdoml/META
