@@ -5,7 +5,7 @@ type 'msg attr = 'msg Attr_.Attr.optional
 type 'msg event_handler
 
 val emitter : ?response:Event.response -> 'msg-> 'msg event_handler
-val handler: (Event.biggest_event Js.t -> 'msg Event.result) -> 'msg event_handler
+val handler: (Dom_html.event Js.t -> 'msg Event.result) -> 'msg event_handler
 
 (* General HTML builders *)
 (* TyXML

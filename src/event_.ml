@@ -2,20 +2,11 @@ open Util_
 open Event_types_
 module Event = struct
   type 'msg result = 'msg Event_types_.result
+  type event = Dom_html.event
 
-  (* Why can't I alias Event_types_.* for these next two types? *)
-  type response = [
-    | `Unhandled
-    | `Handled
-    | `Stop
-  ]
-  class type biggest_event = object
-    inherit Dom_html.event
-    inherit Dom_html.mouseEvent
-    inherit Dom_html.keyboardEvent
-  end
+  type response = [ | Event_types_.response ]
 
-  type 'msg handler = biggest_event Js.t -> 'msg result
+  type 'msg handler = event Js.t -> 'msg result
 
   let get_response x = x.response
   let get_message x = x.message
@@ -52,7 +43,7 @@ module Event = struct
     message = None;
   }
 
-  let lift (converter: biggest_event Js.t -> 'a Js.opt) ev fn =
+  let lift (converter: event Js.t -> 'a Js.opt) ev fn =
     match (converter ev) |> Js.Opt.to_option with
     | Some x -> fn x
     | None -> unhandled

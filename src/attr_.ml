@@ -43,7 +43,7 @@ module Attr = struct
   type 'msg property =
     | String_prop of string
     | Message_emitter of 'msg * Event.response
-    | Event_handler of (Event.biggest_event Js.t -> 'msg Event.result)
+    | Event_handler of (Dom_html.event Js.t -> 'msg Event.result)
 
   type 'msg value =
     | Property of 'msg property
