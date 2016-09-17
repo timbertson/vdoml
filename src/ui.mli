@@ -57,6 +57,7 @@ val bind : ('state, 'message) instance
 type context
 val async : ('state, 'message) instance -> unit Lwt.t -> unit
 val abort : ('state, 'message) instance -> unit
+val wait : context -> unit Lwt.t
 
 val onload : (unit -> unit Lwt.t) -> unit
 

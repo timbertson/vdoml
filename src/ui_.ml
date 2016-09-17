@@ -191,6 +191,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     );
     (instance, context)
 
+  let wait = Ui_main.wait
+
   let onload fn =
     let open Lwt in
     ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
