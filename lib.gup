@@ -1,6 +1,6 @@
 #!bash -eu
 gup --leave
-ARCHIVES=lib/vdoml/vdoml.cma
+ARCHIVES=lib/vdoml/vdoml.*
 gup -u \
 	src/.stamp \
 	lib/vdoml/META \

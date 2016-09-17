@@ -1,6 +1,0 @@
-#!bash -euo pipefail
-gup --always
-mkdir -p "$1"
-gup -u ../opam/packages/virtual_dom/virtual_dom.*/*
-opam2nix="$(nix-build --no-out-link --show-trace -A opam2nix ../default.nix)"
-"$opam2nix/bin/opam2nix" generate --src ../opam --dest "$1/packages" '*'

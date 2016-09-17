@@ -5,3 +5,4 @@
 /test/_build
 node_modules/
 /lib/vdoml/META
+/nix/local.tgz

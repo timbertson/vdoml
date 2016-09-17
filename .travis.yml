@@ -1,0 +1,10 @@
+language: C
+env:
+  matrix:
+    - TEST=nix
+    - TEST=opam
+sudo: required
+script:
+ - "tools/test-$TEST.sh"
+notifications:
+  email: false

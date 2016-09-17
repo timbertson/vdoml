@@ -1,10 +1,15 @@
 #!bash -euo pipefail
+gup -u ../../VERSION
+VERSION="$(cat ../../VERSION)"
+[ -n "$VERSION" ]
+gup -u ../../nix/opam-dep-names
+REQUIRES="$(cat ../../nix/opam-dep-names)"
+
 cat <<EOF >"$1"
-version = "$(cat ../../VERSION)"
+version = "$VERSION"
 description = "Virtual DOM"
-requires = "logs logs.browser lwt js_of_ocaml js_of_ocaml.ppx"
+requires = "$REQUIRES"
 archive(byte) = "vdoml.cma"
-archive(byte, plugin) = "vdoml.cma"
 archive(native) = "vdoml.cmxa"
 archive(native, plugin) = "vdoml.cmxs"
 exists_if = "vdoml.cma"

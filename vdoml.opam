@@ -1,0 +1,17 @@
+opam-version: "1.2"
+authors: [ "tim@gfxmonk.net" ]
+homepage: "https://github.com/timbertson/vdoml"
+maintainer: "tim@gfxmonk.net"
+depends: [
+  "logs"
+  "lwt"
+  "js_of_ocaml"
+  "ocamlfind" {build}
+  "conf-python-2-7" {build}
+  "ppx_test" {test}
+  "ppx_assert" {test}
+]
+build: [ "tools/bin/gup" "lib" ]
+build-test: [ "tools/bin/gup" "test/all" ]
+install: [ "./install.sh" ]
+remove: [ "ocamlfind" "remove" "vdoml" ]

@@ -27,7 +27,7 @@ pushd "$basedir" >/dev/null
 if [ "$(basename "$(dirname "$(pwd)")")" = 'examples' ]; then
 	gup -u ../../lib
 fi
-ocamlbuild "${FLAGS[@]}" -use-ocamlfind -no-links "$target_name"
+ocamlbuild ${FLAGS[@]+"${FLAGS[@]}"} -use-ocamlfind -no-links "$target_name"
 popd >/dev/null
 gup --always
 gup --leave
