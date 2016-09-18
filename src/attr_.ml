@@ -1,41 +1,10 @@
 open Util_
 
-(* module Chain : sig *)
-(*   type ('a, 'b) t *)
-(*   val apply: ('a, 'b) t -> 'a -> 'b *)
-(*   val eq: ('a, 'b) t -> ('a, 'b) t -> bool *)
-(*   val init: ('a -> 'b) -> ('a, 'b) t *)
-(*   val compose: ('a, 'b) t -> ('b, 'c) t -> ('a, 'c) t *)
-(* end = struct *)
-(*   type ('a, 'b) t = { *)
-(*     apply: ('a -> 'b); *)
-(*     identity: ('a -> 'a) list; *)
-(*   } *)
-(*   let eq a b = *)
-(*     a.identity = b.identity *)
-(*  *)
-(*   let init fn = *)
-(*     { *)
-(*       apply = fn; *)
-(*       identity = Obj.magic [fn]; *)
-(*     } *)
-(*  *)
-(*   let apply chain = chain.apply *)
-(*  *)
-(*   let compose a b = *)
-(*     { *)
-(*       apply = apply b % apply a; *)
-(*       identity = Obj.magic a.identity @ Obj.magic b.identity; *)
-(*     } *)
-(* end *)
-
-
 module AttrKey = struct
   type t = Property_name of string | Attribute_name of string
   let compare : t -> t -> int = Pervasives.compare
 end
 module AttrMap = Map.Make(AttrKey)
-
 
 module Attr = struct
   type key = AttrKey.t
@@ -76,7 +45,6 @@ module Attr = struct
   let event_handler fn = Event_handler fn
 
   let js_of_property ~emit =
-    (* let open Event_ in *)
     function
       | String_prop s -> Js.string s |> Js.Unsafe.inject
       | Message_emitter (msg, response) -> Js.Unsafe.inject (fun _e ->

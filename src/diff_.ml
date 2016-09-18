@@ -247,7 +247,7 @@ module Make(Hooks:DOM_HOOKS) = struct
             | None -> (* No match found; just insert it *)
               Log.info (fun m -> m "inserting before existing node at idx %d" idx);
               add_child ~parent (Before (force_dom_node idx)) (render ctx current_child)
-            | Some previous_matching_child when previous_matching_child = previous_child ->
+            | Some previous_matching_child when previous_matching_child == previous_child ->
               (* no reordering required *)
               Log.debug (fun m ->
                 m "node %s matched existing node %s"
@@ -263,7 +263,7 @@ module Make(Hooks:DOM_HOOKS) = struct
               let rec remove_leading_nodes = (function
                 | [] -> failwith "end of list reached in remove_leading_nodes"
                 | candidate :: tail ->
-                  if candidate = previous_matching_child
+                  if candidate == previous_matching_child
                   then tail
                   else (
                     Log.info (fun m -> m "removing node %s" (string_of_node candidate));
