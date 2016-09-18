@@ -77,4 +77,5 @@ opam config exec --switch=vdoml-test -- bash -eux <<"EOF"
 	fi
 	opam install vdoml
 	opam list
+	tools/bin/gup examples/all
 EOF
