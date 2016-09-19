@@ -126,10 +126,21 @@ module Vdom = struct
         unsafe_content = Obj.magic pure_node;
       }
 
+    let identity_eq =
+      (* Identity is a list of functions, which
+       * can only be compared for physical equality *)
+      let rec eq a b =
+        match a, b with
+          | [], [] -> true
+          | a::aa, b::bb -> a == b && eq aa bb
+          | [], _ | _, [] -> false
+      in
+      eq
+
     let property_eq (a_ctx, a) (b_ctx, b) =
       let { identity = a_id ; apply = _a_apply } = a_ctx in
       let { identity = b_id ; apply = _b_apply } = b_ctx in
-      a_id = b_id && a = b
+      identity_eq a_id b_id && Attr.property_eq a b
 
     let attr_eq a b = match (a, b) with
       | Attribute a, Attribute b -> a = b

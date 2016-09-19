@@ -21,8 +21,16 @@ module Attr = struct
   type 'msg t = key * 'msg value
   type 'msg optional = 'msg t option
 
+  let property_eq a b = match (a,b) with
+    | String_prop a, String_prop b -> a = b
+    | String_prop _, _ -> false
+    | Message_emitter (a1, a2), Message_emitter (b1, b2) -> a1 = b1 && a2 = b2
+    | Message_emitter _, _ -> false
+    | Event_handler a_fn, Event_handler b_fn -> a_fn == b_fn (* cannot compare functions structurally *)
+    | Event_handler _, _ -> false
+
   let eq a b = match (a,b) with
-    | Property a, Property b -> a = b
+    | Property a, Property b -> property_eq a b
     | Attribute a, Attribute b -> a = b
     | Attribute _, Property _
     | Property _, Attribute _
