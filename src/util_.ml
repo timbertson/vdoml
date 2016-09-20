@@ -29,3 +29,10 @@ module Option = struct
     | Some x as rv when pred x -> rv
     | other -> None
 end
+
+module List = struct
+  include List
+  let rec any fn = function
+    | [] -> false
+    | x::xs -> if fn x then true else any fn xs
+end

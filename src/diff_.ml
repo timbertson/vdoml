@@ -1,6 +1,7 @@
 open Log_
 open Vdom_
 open Attr_
+open Util_
 
 exception Assertion_error of string
 
@@ -58,11 +59,88 @@ module Make(Hooks:DOM_HOOKS) = struct
 
   let force_element_of_node node = Dom_html.CoerceTo.element node |> force_opt
 
-  let remove : [< element_target | node_target ] -> unit = function
+  let invalid_dom () =
+    raise (Assertion_error "Invalid DOM state!")
+
+  let nth_child element idx : dom_any option =
+    element##.childNodes##item(idx) |> Js.Opt.to_option
+
+  let parent_of_target = function
+    | `Target_node (_, parent)
+    | `Target_element (_, parent) -> parent
+
+  let node_of_node_target (`Target_node (node, _)) = node
+
+  let node_of_target : [<target] -> dom_any = function
+    | (`Target_node (node, _)) -> node
+    | (`Target_element (node, _)) -> (node:>dom_any)
+
+  let first_child (element:dom_element) : dom_any option =
+    element##.firstChild |> Js.Opt.to_option
+
+  let only_target_of_parent : dom_element -> node_target = fun parent ->
+    `Target_node (first_child parent |> force_option, parent)
+
+  let force_text_node : node_target -> dom_text = fun target ->
+    let node = node_of_node_target target in
+    Dom.CoerceTo.text node |> force_opt
+
+  let force_target_node : target -> node_target = function
+    | `Target_node _ as target -> target
+    | _ -> raise (Assertion_error "force_target_node")
+
+  let force_target_element : target -> element_target = function
+    | `Target_element _ as t -> t
+    | `Target_node (node, parent) -> `Target_element (force_element_of_node node, parent)
+
+
+  let run_hook element = function
+    | None -> ()
+    | Some hook -> hook element
+
+  let rec has_removal_hooks_raw = function
+    | Element e -> has_removal_hooks_elem e
+    | Text _ -> false
+
+  and has_removal_hooks = function
+    | Anonymous raw -> has_removal_hooks_raw raw
+    | Identified (_, raw) -> has_removal_hooks_raw raw
+
+  and has_removal_hooks_elem element =
+    match element.e_hooks.hook_destroy with
+    | Some _ -> true
+    | None -> element.e_children |> List.any has_removal_hooks
+
+  and call_removal_hooks_raw content node = match content with
+    | Text _ -> ()
+    | Element e ->
+      let node = force_element_of_node node in
+      e.e_children |> List.iteri (fun i child ->
+        match nth_child node i with
+          | Some dom_child -> call_removal_hooks child dom_child
+          | None -> invalid_dom ()
+      );
+      match e.e_hooks.hook_destroy with
+        | Some hook -> hook node
+        | None -> ()
+
+  and call_removal_hooks content node = match content with
+    | Anonymous raw -> call_removal_hooks_raw raw node
+    | Identified (_, raw) -> call_removal_hooks_raw raw node
+
+  let remove_dom : [< element_target | node_target ] -> unit = function
       | `Target_node (old, parent) -> Dom.removeChild parent old
       | `Target_element (old, parent) ->
         Hooks.unregister_element old;
         Dom.removeChild parent old
+
+  let remove : 'msg node -> [<target] -> unit = fun vdom node ->
+    (* Removal hooks are rare, but invoking them requires full DOM traversal. Check
+     * if any exist in this subtree before bothering with the DOM. *)
+    if has_removal_hooks vdom then (
+      call_removal_hooks vdom (node_of_target node)
+    );
+    remove_dom node
 
   let add_child ~parent (pos:child_position) (child:dom_any) : unit =
     Dom.insertBefore parent child (match pos with
@@ -70,15 +148,12 @@ module Make(Hooks:DOM_HOOKS) = struct
       | Before next -> Js.some next
     )
 
-  let first_child (element:dom_element) : dom_any option =
-    element##.firstChild |> Js.Opt.to_option
-
-  let remove_all (parent:dom_element) : unit =
+  let remove_all_dom (parent:dom_element) : unit =
     let rec loop () =
       match first_child parent with
         | None -> ()
         | Some child ->
-            remove (`Target_node (child, parent)); loop ()
+            remove_dom (`Target_node (child, parent)); loop ()
     in
     loop ()
 
@@ -105,13 +180,15 @@ module Make(Hooks:DOM_HOOKS) = struct
 
   let rec render_element ctx (e:'msg element) : dom_element =
     Log.info (fun m->m "rendering element: %s" (string_of_element e));
-    let { e_attrs; e_children; e_name } = e in
+    let { e_attrs; e_children; e_name; e_hooks } = e in
+
     let dom = Dom_html.document##createElement(Js.string e_name) in
     e_attrs |> AttrMap.iter (set_attr ctx dom);
     e_children |> List.iter (fun child ->
       add_child ~parent:dom Append (render ctx child)
     );
     Hooks.register_element dom;
+    run_hook dom e_hooks.hook_create;
     dom
 
   and render_raw ctx (node:'msg raw_node) : dom_any = match node with
@@ -122,33 +199,12 @@ module Make(Hooks:DOM_HOOKS) = struct
     | Anonymous raw -> render_raw ctx raw
     | Identified (_, raw) -> render_raw ctx raw
 
-  let parent_of_target = function
-    | `Target_node (_, parent)
-    | `Target_element (_, parent) -> parent
-
-  let node_of_node_target (`Target_node (node, _)) = node
-
-  let only_target_of_parent : dom_element -> node_target = fun parent ->
-    `Target_node (first_child parent |> force_option, parent)
-
-  let force_text_node : node_target -> dom_text = fun target ->
-    let node = node_of_node_target target in
-    Dom.CoerceTo.text node |> force_opt
-
-  let force_target_node : target -> node_target = function
-    | `Target_node _ as target -> target
-    | _ -> raise (Assertion_error "force_target_node")
-
-  let force_target_element : target -> element_target = function
-    | `Target_element _ as t -> t
-    | `Target_node (node, parent) -> `Target_element (force_element_of_node node, parent)
-
-  let replace_contents ~(target:[<target]) contents =
+  let replace_contents ~(target:[<target]) vdom contents =
     Log.info (fun m -> m "replacing contents");
     let contents = (contents:>dom_any) in
     let replace (old: #Dom.node Js.t) parent =
       add_child ~parent (before old) contents;
-      remove target
+      remove vdom target
     in
     match target with
       | `Target_node (old, parent) -> replace old parent
@@ -196,12 +252,6 @@ module Make(Hooks:DOM_HOOKS) = struct
       );
     );
     new_values |> AttrMap.iter (set_attr ctx element)
-
-  let invalid_dom () =
-    raise (Assertion_error "Invalid DOM state!")
-
-  let nth_child element idx : dom_any option =
-    element##.childNodes##item(idx) |> Js.Opt.to_option
 
   let rec update_children ctx (previous:'msg node list) (current:'msg node list) (`Target_element (parent, _)) : unit = (
     let previous_remaining = ref previous in
@@ -267,7 +317,7 @@ module Make(Hooks:DOM_HOOKS) = struct
                   then tail
                   else (
                     Log.info (fun m -> m "removing node %s" (string_of_node candidate));
-                    remove (`Target_node (force_dom_node idx, parent));
+                    remove candidate (`Target_node (force_dom_node idx, parent));
                     remove_leading_nodes tail
                   )
               ) in
@@ -292,7 +342,7 @@ module Make(Hooks:DOM_HOOKS) = struct
         | vdom_node::expected, Some node ->
           Log.info (fun m -> m "Removing node at idx %d (for %s)"
             idx (string_of_node vdom_node));
-          remove (`Target_node (node, parent));
+          remove vdom_node (`Target_node (node, parent));
           remove_trailing_nodes expected idx
         | [], Some _ -> raise (Assertion_error ("Expected no more trailing DOM nodes at idx " ^ (string_of_int idx)))
         | node::_, None -> raise (Assertion_error (
@@ -322,7 +372,7 @@ module Make(Hooks:DOM_HOOKS) = struct
       (string_of_element current));
     if previous_name <> current_name then
       (* can't change node type, burn it to the ground *)
-      replace_contents ~target (render_element ctx current)
+      replace_contents ~target (Anonymous (Element previous)) (render_element ctx current)
     else (
       update_attributes ctx previous_attrs current_attrs target;
       update_children ctx previous_children current_children target
@@ -332,7 +382,8 @@ module Make(Hooks:DOM_HOOKS) = struct
     | Element previous, Element current ->
         let target = force_target_element target in
         update_element ctx previous current target
-    | _, Element current -> replace_contents ~target (render_element ctx current)
+    | previous, Element current ->
+      replace_contents ~target (Anonymous previous) (render_element ctx current)
     | Text previous, Text current ->
       if previous <> current then (
         let target = target
@@ -340,7 +391,8 @@ module Make(Hooks:DOM_HOOKS) = struct
           |> force_text_node in
         replace_text target current
       )
-    | _, Text current -> replace_contents ~target (render_text current)
+    | previous, Text current ->
+      replace_contents ~target (Anonymous previous) (render_text current)
   )
 
   and update_node : 'msg ctx -> 'msg node -> 'msg node -> node_target -> unit = fun ctx previous current target -> (
@@ -348,10 +400,10 @@ module Make(Hooks:DOM_HOOKS) = struct
       (* cheap physical inequality, to short-circuit view functions which use a cached value *)
       match (previous, current) with
         | Anonymous p, Anonymous c -> update_raw ctx p c (target:>target)
-        | _, Anonymous c -> replace_contents ~target (render_raw ctx c)
+        | p, Anonymous c -> replace_contents ~target p (render_raw ctx c)
         | Identified (pid, p), Identified (cid, c)
             when Identity.eq pid cid -> update_raw ctx p c (target:>target)
-        | _, Identified (_, c) -> replace_contents ~target (render_raw ctx c)
+        | p, Identified (_, c) -> replace_contents ~target p (render_raw ctx c)
     )
   )
 
@@ -366,7 +418,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   (* Public API: *)
   let init ~emit (current:'msg pure_node) (parent:dom_element) =
     let ctx = { emit } in
-    remove_all parent;
+    remove_all_dom parent;
     let current = Internal.root current in
     add_child ~parent Append (render ctx current);
     (ctx, current)

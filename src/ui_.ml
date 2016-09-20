@@ -31,6 +31,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let identify id = let open Vdom in identify (User_tag id)
 
+  let hook ?create ?destroy node =
+    Vdom.hook (Vdom.hooks ?create ?destroy ()) node
+
   type 'msg node = 'msg Html.html
 
   type ('state, 'msg) instance_state = {

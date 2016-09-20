@@ -29,12 +29,18 @@ module Vdom = struct
       | Property of 'msg internal_property
       | Attribute of string
 
-    type 'msg element =
-      {
-        e_name : string;
-        e_attrs: 'msg attr AttrMap.t;
-        e_children: 'msg node list;
-      }
+    type hook = Dom_html.element Js.t -> unit
+    type hooks = {
+      hook_create: hook option;
+      hook_destroy: hook option;
+    }
+
+    type 'msg element = {
+      e_name : string;
+      e_attrs: 'msg attr AttrMap.t;
+      e_children: 'msg node list;
+      e_hooks: hooks;
+    }
 
     and 'msg raw_node = 
       | Element of 'msg element
@@ -53,6 +59,8 @@ module Vdom = struct
     val string_of_attr : (AttrKey.t * 'msg attr) -> string
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
+    val hook : hooks -> 'msg pure_node -> 'msg pure_node
+    val hooks : ?create:hook -> ?destroy:hook -> unit -> hooks
     val text : string -> 'msg pure_node
     val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
     val create_leaf : ?a:'msg Attr.optional list -> string -> 'msg pure_node
@@ -72,11 +80,18 @@ module Vdom = struct
       identity: ('msg -> 'msg) list;
     }
 
+    type hook = Dom_html.element Js.t -> unit
+    type hooks = {
+      hook_create: hook option;
+      hook_destroy: hook option;
+    }
+
     type 'msg element = 
       {
         e_name : string;
         e_attrs: 'msg attr AttrMap.t;
         e_children: 'msg node list;
+        e_hooks: hooks;
       }
 
     and 'msg pure_element =
@@ -84,6 +99,7 @@ module Vdom = struct
         e_pure_name : string;
         e_pure_attrs: 'msg Attr.value AttrMap.t;
         e_pure_children: 'msg pure_node list;
+        e_pure_hooks: hooks;
       }
 
     and 'msg attr =
@@ -114,7 +130,7 @@ module Vdom = struct
     and 'msg type_conversion_node =
       { 
         unsafe_convert : 'msg -> 'msg; (* Note: 'a -> 'msg *)
-        unsafe_content : 'msg pure_node; (* NOTE: this is _actually_ 'a pure_node *)
+        unsafe_content : 'msg pure_node; (* NOTE: this is actually 'a pure_node *)
       }
 
     (* Note: for efficient Vdom diffing, `fn` should be statically-defined
@@ -165,14 +181,15 @@ module Vdom = struct
       | Pure_text t -> Text t
 
     and convert_element ctx element =
-      let { e_pure_name; e_pure_attrs; e_pure_children} = element in
+      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks} = element in
       {
         e_name = e_pure_name;
+        e_hooks = e_pure_hooks;
         e_attrs = e_pure_attrs |> AttrMap.map (function
           | Attr.Attribute value -> Attribute value
           | Attr.Property p -> Property (ctx, p)
         );
-        e_children = e_pure_children |> List.map (convert_node ctx)
+        e_children = e_pure_children |> List.map (convert_node ctx);
       }
 
     let init = {
@@ -210,12 +227,34 @@ module Vdom = struct
         unsafe_content = identify_anonymous id node.unsafe_content
       }
 
+    let hooks ?create ?destroy () = {
+      hook_create = create;
+      hook_destroy = destroy;
+    }
+
+    let rec hook_node hooks = function
+      | Pure_text _ -> failwith "Only element nodes can be hooked"
+      | Pure_element e -> Pure_element { e with e_pure_hooks = hooks }
+
+    let rec hook hooks = function
+      | Pure_anonymous node -> Pure_anonymous (hook_node hooks node)
+      | Pure_identified (id, node) -> Pure_identified (id, hook_node hooks node)
+      | Pure_transformer node -> Pure_transformer { node with
+        unsafe_content = hook hooks node.unsafe_content
+      }
+
     let text (s : string) =
       Pure_anonymous (Pure_text s)
+
+    let no_hooks = {
+      hook_create = None;
+      hook_destroy = None;
+    }
 
     let create ?(a=[]) tag children =
       Pure_anonymous (Pure_element {
         e_pure_name = tag;
+        e_pure_hooks = no_hooks;
         e_pure_attrs = Attr.list_to_attrs a;
         e_pure_children = children
       })

@@ -43,7 +43,7 @@ module Ui_main = struct
       match !first_error with
       | None ->
         Log.info (fun m->m "UI cancelled");
-        Diff.remove_all root;
+        Diff.remove_all_dom root;
         Lwt.return_unit
       | Some (e, backtrace) ->
         let err = Printexc.to_string e in

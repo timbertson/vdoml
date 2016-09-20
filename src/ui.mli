@@ -20,6 +20,22 @@ val identify : identity -> 'msg node -> 'msg node
 (** Assign an identity to a node. This will be used by the diffing algorithm to
     track potentially-reordered nodes across susequent renders. *)
 
+val hook :
+  ?create:(Dom_html.element Js.t -> unit) ->
+  ?destroy:(Dom_html.element Js.t -> unit) ->
+  'msg node -> 'msg node
+(** Register low-level creation and removal hooks on a node.
+
+    `node` must be an element (not text),
+
+    This should be used as a last resort for DOM interop or for
+    functionality which cannot be achieved via regular means.
+
+    `node` ought to be identified, since anonymous elements may
+    be re-used for unrelated content by the VDom diff algorithm,
+    which doesn't know about hooks.
+  *)
+
 val component : 
   update:('state -> 'message -> 'state) ->
   view:('state, 'message) view_fn ->
