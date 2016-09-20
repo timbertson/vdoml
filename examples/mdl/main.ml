@@ -4,9 +4,9 @@ open Util_
 (* create a Hook module which registers all vdom-created elements with mdl's componentHandler *)
 module Mdl_dom : Ui_f.DOM_HOOKS = struct
 	let componentHandler = lazy (Js.Unsafe.(get global "componentHandler"))
-	let register_element (e: Dom_html.element Js.t) =
+	let on_create (e: Dom_html.element Js.t) =
 		Js.Unsafe.meth_call (Lazy.force componentHandler) "upgradeElement" [| Js.Unsafe.inject e |]
-	let unregister_element _e = ()
+	let on_destroy _e = ()
 end
 
 (* Make a non-default version of Ui using our hooks *)

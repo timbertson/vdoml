@@ -6,13 +6,13 @@ open Util_
 exception Assertion_error of string
 
 module type DOM_HOOKS = sig
-  val register_element : Dom_html.element Js.t -> unit
-  val unregister_element : Dom_html.element Js.t -> unit
+  val on_create : Dom_html.element Js.t -> unit
+  val on_destroy : Dom_html.element Js.t -> unit
 end
 
 module No_hooks : DOM_HOOKS = struct
-  let register_element _e = ()
-  let unregister_element = register_element
+  let on_create _e = ()
+  let on_destroy = on_create
 end
 
 module Make(Hooks:DOM_HOOKS) = struct
@@ -131,7 +131,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   let remove_dom : [< element_target | node_target ] -> unit = function
       | `Target_node (old, parent) -> Dom.removeChild parent old
       | `Target_element (old, parent) ->
-        Hooks.unregister_element old;
+        Hooks.on_destroy old;
         Dom.removeChild parent old
 
   let remove : 'msg node -> [<target] -> unit = fun vdom node ->
@@ -187,7 +187,7 @@ module Make(Hooks:DOM_HOOKS) = struct
     e_children |> List.iter (fun child ->
       add_child ~parent:dom Append (render ctx child)
     );
-    Hooks.register_element dom;
+    Hooks.on_create dom;
     run_hook dom e_hooks.hook_create;
     dom
 
