@@ -226,6 +226,8 @@ let a_download = string_attrib "download"
 
 let a_rel = string_attrib "rel"
 
+let a_role = string_attrib "role"
+
 let a_tabindex = int_attrib "tabindex"
 
 let a_mime_type = string_attrib "type"

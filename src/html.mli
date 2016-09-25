@@ -312,6 +312,8 @@ val a_rel : string -> 'msg attr
     document. The value of this attribute is a space-separated
     list of link types. *)
 
+val a_role : string -> 'msg attr
+
 val a_tabindex : int -> 'msg attr
 (** This attribute specifies the position of the current
     element in the tabbing order for the current document. This
