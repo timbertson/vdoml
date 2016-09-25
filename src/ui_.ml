@@ -164,7 +164,41 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let async instance th = Ui_main.async (instance.context) th
 
+  module Tasks = struct
+    type ('state, 'message) t = {
+      sync_tasks : (('state, 'message) instance -> unit) list ref;
+      async_tasks : (('state, 'message) instance -> unit Lwt.t) list ref;
+    }
+
+    (* NOTE: must be defined before `async` shadows Ui.async *)
+    let attach instance t =
+      let invoke t = t instance in
+      !(t.sync_tasks) |> List.iter invoke;
+      !(t.async_tasks) |> List.iter ((async instance) % invoke)
+
+    let init () = {
+      sync_tasks = ref [];
+      async_tasks = ref [];
+    }
+
+    (* builders for the common case of *)
+    let of_sync t = {
+      sync_tasks = ref [t];
+      async_tasks = ref [];
+    }
+
+    let of_async t = {
+      sync_tasks = ref [];
+      async_tasks = ref [t];
+    }
+
+    let async t task = t.async_tasks := task :: !(t.async_tasks)
+
+    let sync t task = t.sync_tasks := task :: !(t.sync_tasks)
+  end
+
   let render
+      ?(tasks: ('state, 'message) Tasks.t option)
       (component: ('state, 'message) component)
       (root:Dom_html.element Js.t)
       : ('state, 'message) instance * context =
@@ -179,6 +213,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       state = ref None;
       instance_view = component.component_view;
     } in
+
+    tasks |> Option.may (Tasks.attach instance);
 
     async instance (
       let view_fn = update_and_view instance in
@@ -200,7 +236,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     let open Lwt in
     ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
 
-  let main ?log ?root ?get_root ?background ui () =
+  let main ?log ?root ?get_root ?tasks ui () =
     let () = match log with
       | Some lvl -> set_log_level lvl
       | None -> init_logging ()
@@ -215,11 +251,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
             (fun () -> raise (Diff_.Assertion_error ("Element with id " ^ id ^ " not found")))
       )
     in
-    let instance, main = render ui (get_root ()) in
-    let () = match background with
-      | Some fn -> fn instance
-      | None -> ()
-    in
+    let instance, main = render ?tasks ui (get_root ()) in
     Ui_main.wait main
 
   let abort instance = Ui_main.cancel instance.context

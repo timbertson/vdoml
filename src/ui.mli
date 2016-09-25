@@ -70,6 +70,15 @@ val bind : ('state, 'message) instance
   -> ('state -> 'arg -> 'msg Event.result)
   -> ('arg -> 'msg Event.result)
 
+module Tasks : sig
+  type ('state, 'message) t
+  val init : unit -> ('state, 'message) t
+  val of_sync : (('state, 'message) instance -> unit) -> ('state, 'message) t
+  val of_async : (('state, 'message) instance -> unit Lwt.t) -> ('state, 'message) t
+  val sync : ('state, 'message) t -> (('state, 'message) instance -> unit) -> unit
+  val async : ('state, 'message) t -> (('state, 'message) instance -> unit Lwt.t) -> unit
+end
+
 type context
 val async : ('state, 'message) instance -> unit Lwt.t -> unit
 val abort : ('state, 'message) instance -> unit
@@ -81,14 +90,15 @@ val main :
   ?log:Logs.level
   -> ?root:string
   -> ?get_root:(unit -> Dom_html.element Js.t)
-  -> ?background:(('state, 'message) instance -> unit)
+  -> ?tasks:('state, 'message) Tasks.t
   -> ('state, 'message) component
   -> unit -> unit Lwt.t
 
 (** {2 Advanced API} *)
 
 val render :
-  ('state, 'message) component
+  ?tasks:('state, 'message) Tasks.t
+  -> ('state, 'message) component
   -> Dom_html.element Js.t
   -> ('state, 'message) instance * context
   (** Begin a render lifecycle for a toplevel component.
