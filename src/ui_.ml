@@ -46,11 +46,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   and ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
 
-  and ('state, 'command, 'message) component = {
+  and ('state, 'message) component = {
     init: 'state;
-    intercept: ('state, 'command) instance -> 'state -> 'command -> 'message option;
     update: 'state -> 'message -> 'state;
-    component_view: ('state, 'command) view_fn;
+    component_view: ('state, 'message) view_fn;
   }
 
   and ('state, 'message) instance = {
@@ -87,15 +86,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         tag_counter := tag + 1;
         Internal_tag tag
 
-  let component (type state) (type command) (type message)
-      ~(intercept:(state, command) instance -> state -> command -> message option)
-      ~(update:state -> message -> state)
-      ~(view: (state, command) view_fn)
-      (init:state) =
-    { init; update; component_view = view; intercept }
-
-  let no_intercept _instance _state msg = Some msg
-  let pure_component ~update ~view = component ~intercept:no_intercept ~update ~view
+  let component
+      ~(update:'state -> 'message -> 'state)
+      ~(view: ('state, 'message) view_fn)
+      (init:'state) = 
+    { init; update; component_view = view }
 
   let update_and_view instance =
       let id = instance.identity in
@@ -203,10 +198,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   end
 
   let render
-      ?(tasks: ('state, 'command) Tasks.t option)
-      (component: ('state, 'command, 'message) component)
+      ?(tasks: ('state, 'message) Tasks.t option)
+      (component: ('state, 'message) component)
       (root:Dom_html.element Js.t)
-      : ('state, 'command) instance * context =
+      : ('state, 'message) instance * context =
 
     let context = Ui_main.init root in
     let events, emit = Lwt_stream.create () in
@@ -226,13 +221,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       let state = ref component.init in
       let dom_state = ref (Diff.init ~emit (view_fn !state) root) in
       Lwt_stream.iter (fun message ->
-        component.intercept instance !state message |> Option.may (fun message ->
-          let new_state = component.update !state message in
-          let new_view = view_fn new_state in
-          Log.info (fun m -> m "Updating view");
-          dom_state := Diff.update !dom_state new_view root;
-          state := new_state
-        )
+        let new_state = component.update !state message in
+        let new_view = view_fn new_state in
+        Log.info (fun m -> m "Updating view");
+        dom_state := Diff.update !dom_state new_view root;
+        state := new_state;
       ) events
     );
     (instance, context)
