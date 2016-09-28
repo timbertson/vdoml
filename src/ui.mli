@@ -9,11 +9,11 @@
      as it effectively implements a single "step" of the component's state machine.
    *)
 
-type ('state, 'message) component
-type ('state, 'message) instance
-type ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
-type 'message emit_fn = 'message -> unit
-type 'message node = 'message Html.html
+type ('state, 'command, 'message) component
+type ('state, 'command) instance
+type ('state, 'command) view_fn = ('state, 'command) instance -> 'state -> 'command Html.html
+type 'command emit_fn = 'command -> unit
+type 'command node = 'command Html.html
 
 type identity = [ `String of string | `Int of int ]
 val identify : identity -> 'msg node -> 'msg node
@@ -36,52 +36,59 @@ val hook :
     which doesn't know about hooks.
   *)
 
-val component : 
+val component :
+  intercept:(('state, 'command) instance -> 'state -> 'command -> 'message option) ->
   update:('state -> 'message -> 'state) ->
-  view:('state, 'message) view_fn ->
-  'state -> ('state, 'message) component
+  view:('state, 'command) view_fn ->
+  'state -> ('state, 'command, 'message) component
+(** Create a component with the given view, intercept, and update functions with the given initial state. *)
+
+val pure_component :
+  update:('state -> 'command -> 'state) ->
+  view:('state, 'command) view_fn ->
+  'state -> ('state, 'command, 'command) component
 (** Create a component with the given view function, update function and initial state. *)
 
-val emit : ('state, 'message) instance -> 'message emit_fn
+val emit : ('state, 'command) instance -> 'command emit_fn
 (** Emit an update message to the given instance *)
 
-(* like `children`, but with type 'message = `child_message` - i.e. no message conversion *)
-val collection : view:('child_state, 'message) view_fn
+(* like `children`, but with type 'command = `child_message` - i.e. no message conversion *)
+val collection : view:('child_state, 'command) view_fn
   -> id:('child_state -> identity)
-  -> ('state, 'message) instance
+  -> ('state, 'command) instance
   -> 'child_state list
-  -> 'message node list
+  -> 'command node list
 
-val children : view:('child_state, 'child_message) view_fn
-  -> message:('child_message -> 'message)
+val children : view:('child_state, 'child_command) view_fn
+  -> message:('child_command -> 'command)
   -> id:('child_state -> identity)
-  -> ('state, 'message) instance
+  -> ('state, 'command) instance
   -> 'child_state list
-  -> 'message node list
+  -> 'command node list
 
-val child : view:('child_state, 'child_message) view_fn
-  -> message:('child_message -> 'message)
+val child : view:('child_state, 'child_command) view_fn
+  -> message:('child_command -> 'command)
   -> ?id:identity
-  -> ('state, 'message) instance
+  -> ('state, 'command) instance
   -> 'child_state
-  -> 'message Html.html
+  -> 'command Html.html
 
-val bind : ('state, 'message) instance
-  -> ('state -> 'arg -> 'msg Event.result)
-  -> ('arg -> 'msg Event.result)
+val bind : ('state, 'command) instance
+  -> ('state -> 'arg -> 'command Event.result)
+  -> ('arg -> 'command Event.result)
 
 module Tasks : sig
-  type ('state, 'message) t
-  val init : unit -> ('state, 'message) t
-  val of_sync : (('state, 'message) instance -> unit) -> ('state, 'message) t
-  val of_async : (('state, 'message) instance -> unit Lwt.t) -> ('state, 'message) t
-  val sync : ('state, 'message) t -> (('state, 'message) instance -> unit) -> unit
-  val async : ('state, 'message) t -> (('state, 'message) instance -> unit Lwt.t) -> unit
+  type ('state, 'command) t
+  val init : unit -> ('state, 'command) t
+  val of_sync : (('state, 'command) instance -> unit) -> ('state, 'command) t
+  val of_async : (('state, 'command) instance -> unit Lwt.t) -> ('state, 'command) t
+  val sync : ('state, 'command) t -> (('state, 'command) instance -> unit) -> unit
+  val async : ('state, 'command) t -> (('state, 'command) instance -> unit Lwt.t) -> unit
 end
 
 type context
-val async : ('state, 'message) instance -> unit Lwt.t -> unit
-val abort : ('state, 'message) instance -> unit
+val async : ('state, 'command) instance -> unit Lwt.t -> unit
+val abort : ('state, 'command) instance -> unit
 val wait : context -> unit Lwt.t
 
 val onload : (unit -> unit Lwt.t) -> unit
@@ -90,17 +97,17 @@ val main :
   ?log:Logs.level
   -> ?root:string
   -> ?get_root:(unit -> Dom_html.element Js.t)
-  -> ?tasks:('state, 'message) Tasks.t
-  -> ('state, 'message) component
+  -> ?tasks:('state, 'command) Tasks.t
+  -> ('state, 'command, 'message) component
   -> unit -> unit Lwt.t
 
 (** {2 Advanced API} *)
 
 val render :
-  ?tasks:('state, 'message) Tasks.t
-  -> ('state, 'message) component
+  ?tasks:('state, 'command) Tasks.t
+  -> ('state, 'command, 'message) component
   -> Dom_html.element Js.t
-  -> ('state, 'message) instance * context
+  -> ('state, 'command) instance * context
   (** Begin a render lifecycle for a toplevel component.
       Returns the Ui instance corresponding to the component,
       as well as a {!context} representing the lifecycle
