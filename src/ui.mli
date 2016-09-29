@@ -10,8 +10,10 @@
    *)
 
 type ('state, 'message) component
+type ('state, 'message) root_component
 type ('state, 'message) instance
 type ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
+type ('state, 'message) command_fn = ('state, 'message) instance -> 'message -> unit Lwt.t option
 type 'message emit_fn = 'message -> unit
 type 'message node = 'message Html.html
 
@@ -36,32 +38,45 @@ val hook :
     which doesn't know about hooks.
   *)
 
-val component : 
+val component :
+  view:('state, 'message) view_fn ->
+  ?command:('state, 'message) command_fn ->
+  unit -> ('state, 'message) component
+
+val root_component :
   update:('state -> 'message -> 'state) ->
   view:('state, 'message) view_fn ->
-  'state -> ('state, 'message) component
-(** Create a component with the given view function, update function and initial state. *)
+  ?command:('state, 'message) command_fn ->
+  'state -> ('state, 'message) root_component
+
+val root :
+  ('state, 'message) component ->
+  update:('state -> 'message -> 'state) ->
+  'state -> ('state, 'message) root_component
 
 val emit : ('state, 'message) instance -> 'message emit_fn
 (** Emit an update message to the given instance *)
 
 (* like `children`, but with type 'message = `child_message` - i.e. no message conversion *)
-val collection : view:('child_state, 'message) view_fn
-  -> id:('child_state -> identity)
+val collection :
+  id:('child_state -> identity)
+  -> ('child_state, 'message) component
   -> ('state, 'message) instance
   -> 'child_state list
   -> 'message node list
 
-val children : view:('child_state, 'child_message) view_fn
-  -> message:('child_message -> 'message)
+val children :
+  message:('child_message -> 'message)
   -> id:('child_state -> identity)
+  -> ('child_state, 'child_message) component
   -> ('state, 'message) instance
   -> 'child_state list
   -> 'message node list
 
-val child : view:('child_state, 'child_message) view_fn
-  -> message:('child_message -> 'message)
+val child :
+  message:('child_message -> 'message)
   -> ?id:identity
+  -> ('child_state, 'child_message) component
   -> ('state, 'message) instance
   -> 'child_state
   -> 'message Html.html
@@ -91,14 +106,14 @@ val main :
   -> ?root:string
   -> ?get_root:(unit -> Dom_html.element Js.t)
   -> ?tasks:('state, 'message) Tasks.t
-  -> ('state, 'message) component
+  -> ('state, 'message) root_component
   -> unit -> unit Lwt.t
 
 (** {2 Advanced API} *)
 
 val render :
   ?tasks:('state, 'message) Tasks.t
-  -> ('state, 'message) component
+  -> ('state, 'message) root_component
   -> Dom_html.element Js.t
   -> ('state, 'message) instance * context
   (** Begin a render lifecycle for a toplevel component.

@@ -46,17 +46,27 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   and ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
 
+  and ('state, 'message) update_fn = 'state -> 'message -> 'state
+
+  and ('state, 'message) command_fn = ('state, 'message) instance -> 'message -> unit Lwt.t option
+
   and ('state, 'message) component = {
-    init: 'state;
-    update: 'state -> 'message -> 'state;
     component_view: ('state, 'message) view_fn;
+    component_command: ('state, 'message) command_fn option;
+  }
+
+  and ('state, 'message) root_component = {
+    component: ('state, 'message) component;
+    root_update: ('state, 'message) update_fn;
+    root_init: 'state;
   }
 
   and ('state, 'message) instance = {
     context: context;
     emit: 'message emit_fn;
     identity: Vdom.identity;
-    instance_view: ('state, 'message) view_fn;
+    view: ('state, 'message) view_fn;
+    command: ('state, 'message) command_fn option;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
@@ -87,14 +97,31 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         Internal_tag tag
 
   let component
-      ~(update:'state -> 'message -> 'state)
-      ~(view: ('state, 'message) view_fn)
-      (init:'state) = 
-    { init; update; component_view = view }
+    ~(view: ('state, 'message) view_fn)
+    ?(command:('state, 'message) command_fn option)
+    ()
+    = { component_view = view; component_command = command }
+
+  let root component ~update init = {
+    component;
+    root_init = init;
+    root_update = update;
+  }
+
+  let root_component
+    ~(update:('state, 'message) update_fn)
+    ~(view: ('state, 'message) view_fn)
+    ?(command:('state, 'message) command_fn option)
+    init
+    = {
+      component = { component_view = view; component_command = command };
+      root_init = init;
+      root_update = update;
+    }
 
   let update_and_view instance =
       let id = instance.identity in
-      let render = let view = instance.instance_view instance in
+      let render = let view = instance.view instance in
         fun state -> Vdom.identify_anonymous id (view state) in
     fun state ->
       (* Note: this is effectful because we need to store `state` separate from VDOM :( *)
@@ -105,7 +132,13 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let emit instance = instance.emit
+  let async instance th = Ui_main.async (instance.context) th
+
+  let emit instance message =
+    instance.command
+      |> Option.bind (fun cmd -> cmd instance message)
+      |> Option.may (async instance);
+    instance.emit message
 
   let bind instance handler = (fun evt ->
     (* XXX this relies on never rendering any instance
@@ -121,13 +154,13 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   module ChildCache = Collection_cache.Make(Collection_cache.Child_list)
 
   let children (type child_message) (type message) (type child_state) (type state)
-    ~(view:(child_state, child_message) view_fn)
     ~(message:child_message -> message)
     ~(id:child_state -> identity)
+    (component:(child_state, child_message) component)
     (instance:(state, message) instance)
   =
     let open Vdom in
-    let emit = instance.emit % message in
+    let emit = (emit instance) % message in
     let cache = ChildCache.init () in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
@@ -135,34 +168,34 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view {
             context = instance.context;
+            command = component.component_command;
+            view = component.component_view;
             emit;
             identity = id;
-            instance_view = view;
             state = ref None;
           }) in
           child state
         )
       ) |> List.map (Vdom.transform message)
 
-  let collection ~view ~id instance = children ~view ~id ~message:identity instance
+  let collection ~id component instance = children ~id ~message:identity component instance
 
   let child (type child_message) (type message) (type child_state) (type state)
-    ~(view:(child_state, child_message) view_fn)
     ~(message:child_message -> message)
     ?(id:identity option)
+    (component:(child_state, child_message) component)
     (instance:(state, message) instance)
     : child_state -> message Html.html
   =
     let child : (child_state, child_message) instance = {
+      view = component.component_view;
+      command = component.component_command;
       context = instance.context;
-      emit = instance.emit % message;
+      emit = (emit instance) % message;
       identity = gen_identity id;
-      instance_view = view;
       state = ref None;
     } in
     fun state -> update_and_view child state |> Vdom.transform message
-
-  let async instance th = Ui_main.async (instance.context) th
 
   module Tasks = struct
     type ('state, 'message) t = {
@@ -199,7 +232,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let render
       ?(tasks: ('state, 'message) Tasks.t option)
-      (component: ('state, 'message) component)
+      ({component; root_init; root_update}: ('state, 'message) root_component)
       (root:Dom_html.element Js.t)
       : ('state, 'message) instance * context =
 
@@ -211,17 +244,18 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       emit;
       identity = gen_identity None;
       state = ref None;
-      instance_view = component.component_view;
+      view = component.component_view;
+      command = component.component_command;
     } in
 
     tasks |> Option.may (Tasks.attach instance);
 
     async instance (
       let view_fn = update_and_view instance in
-      let state = ref component.init in
+      let state = ref root_init in
       let dom_state = ref (Diff.init ~emit (view_fn !state) root) in
       Lwt_stream.iter (fun message ->
-        let new_state = component.update !state message in
+        let new_state = root_update !state message in
         let new_view = view_fn new_state in
         Log.info (fun m -> m "Updating view");
         dom_state := Diff.update !dom_state new_view root;
@@ -236,7 +270,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     let open Lwt in
     ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
 
-  let main ?log ?root ?get_root ?tasks ui () =
+  let main ?log ?root ?get_root ?tasks component () =
     let () = match log with
       | Some lvl -> set_log_level lvl
       | None -> init_logging ()
@@ -251,7 +285,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
             (fun () -> raise (Diff_.Assertion_error ("Element with id " ^ id ^ " not found")))
       )
     in
-    let instance, main = render ?tasks ui (get_root ()) in
+    let instance, main = render ?tasks component (get_root ()) in
     Ui_main.wait main
 
   let abort instance = Ui_main.cancel instance.context
