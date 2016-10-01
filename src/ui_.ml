@@ -44,15 +44,13 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   type 'message emit_fn = 'message -> unit
 
-  and ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
-
+  and ('state, 'message) view_fn = 'state -> 'message Html.html
   and ('state, 'message) update_fn = 'state -> 'message -> 'state
-
-  and ('state, 'message) command_fn = ('state, 'message) instance -> 'message -> unit Lwt.t option
+  and ('state, 'message) command_fn = 'message -> unit Lwt.t option
 
   and ('state, 'message) component = {
-    component_view: ('state, 'message) view_fn;
-    component_command: ('state, 'message) command_fn option;
+    component_view: ('state, 'message) instance -> ('state, 'message) view_fn;
+    component_command: (('state, 'message) instance -> ('state, 'message) command_fn) option;
   }
 
   and ('state, 'message) root_component = {
@@ -65,8 +63,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     context: context;
     emit: 'message emit_fn;
     identity: Vdom.identity;
-    view: ('state, 'message) view_fn;
-    command: ('state, 'message) command_fn option;
+    view: ('state, 'message) view_fn Lazy.t;
+    command: ('state, 'message) command_fn option Lazy.t;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
@@ -97,8 +95,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         Internal_tag tag
 
   let component
-    ~(view: ('state, 'message) view_fn)
-    ?(command:('state, 'message) command_fn option)
+    ~(view: ('state, 'message) instance -> ('state, 'message) view_fn)
+    ?(command:(('state, 'message) instance -> ('state, 'message) command_fn) option)
     ()
     = { component_view = view; component_command = command }
 
@@ -110,8 +108,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let root_component
     ~(update:('state, 'message) update_fn)
-    ~(view: ('state, 'message) view_fn)
-    ?(command:('state, 'message) command_fn option)
+    ~(view: ('state, 'message) instance -> ('state, 'message) view_fn)
+    ?(command:(('state, 'message) instance -> ('state, 'message) command_fn) option)
     init
     = {
       component = { component_view = view; component_command = command };
@@ -119,10 +117,21 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       root_update = update;
     }
 
+  let make_instance ~context ~emit ~identity component =
+    let rec instance = lazy {
+      context;
+      emit;
+      identity;
+      state = ref None;
+      view = lazy (component.component_view (Lazy.force instance));
+      command = lazy (component.component_command |> Option.map (fun cmd -> cmd (Lazy.force instance)));
+    } in
+    Lazy.force instance
+
   let update_and_view instance =
       let id = instance.identity in
-      let render = let view = instance.view instance in
-        fun state -> Vdom.identify_anonymous id (view state) in
+      let view = Lazy.force instance.view in
+      let render state = Vdom.identify_anonymous id (view state) in
     fun state ->
       (* Note: this is effectful because we need to store `state` separate from VDOM :( *)
       let state = match !(instance.state) with
@@ -135,10 +144,34 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let async instance th = Ui_main.async (instance.context) th
 
   let emit instance message =
-    instance.command
-      |> Option.bind (fun cmd -> cmd instance message)
+    Log.warn (fun m->m
+      "Emitting message with command = %s"
+      (match Lazy.force instance.command with Some x -> "Some!" | None -> "None")
+    );
+    Lazy.force (instance.command)
+      |> Option.bind (fun cmd -> cmd message)
       |> Option.may (async instance);
     instance.emit message
+
+  let supplantable fn =
+    let ref = ref None in
+    fun instance arg -> (
+      !ref |> Option.may Lwt.cancel;
+      let th =
+        (* Can't have a self-recursive value, so use Lazy for indirection *)
+        let rec th = lazy (fn arg |> Lwt.map (Option.may (fun msg ->
+          let current = !ref in
+          let th = Lazy.force th in
+          if current |> Option.map ((==) th) |> Option.default false
+            then emit instance msg
+            else Log.info (fun m->m"Discarding message from cancelled thread")
+        ))) in
+        Lazy.force th in
+      ref := Some (th);
+      th
+    )
+
+  let supplantable_some fn = supplantable (Lwt.map (fun x -> Some x) % fn)
 
   let bind instance handler = (fun evt ->
     (* XXX this relies on never rendering any instance
@@ -166,14 +199,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       ChildCache.use cache (fun get_or_create ->
         state |> List.map (fun state ->
           let id = User_tag (id state) in
-          let child = get_or_create id (fun _ -> update_and_view {
-            context = instance.context;
-            command = component.component_command;
-            view = component.component_view;
-            emit;
-            identity = id;
-            state = ref None;
-          }) in
+          let child = get_or_create id (fun _ -> update_and_view (make_instance
+            ~context:instance.context ~emit ~identity:id component
+          )) in
           child state
         )
       ) |> List.map (Vdom.transform message)
@@ -187,14 +215,12 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (instance:(state, message) instance)
     : child_state -> message Html.html
   =
-    let child : (child_state, child_message) instance = {
-      view = component.component_view;
-      command = component.component_command;
-      context = instance.context;
-      emit = (emit instance) % message;
-      identity = gen_identity id;
-      state = ref None;
-    } in
+    let child : (child_state, child_message) instance = (make_instance
+      ~context:(instance.context)
+      ~emit:((emit instance) % message)
+      ~identity:(gen_identity id)
+      component
+    ) in
     fun state -> update_and_view child state |> Vdom.transform message
 
   module Tasks = struct
@@ -239,14 +265,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     let context = Ui_main.init root in
     let events, emit = Lwt_stream.create () in
     let emit = fun msg -> emit (Some msg) in
-    let instance = {
-      context;
-      emit;
-      identity = gen_identity None;
-      state = ref None;
-      view = component.component_view;
-      command = component.component_command;
-    } in
+    let instance = (make_instance
+      ~context ~emit ~identity:(gen_identity None) component
+    ) in
 
     tasks |> Option.may (Tasks.attach instance);
 

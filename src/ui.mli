@@ -12,9 +12,8 @@
 type ('state, 'message) component
 type ('state, 'message) root_component
 type ('state, 'message) instance
-type ('state, 'message) view_fn = ('state, 'message) instance -> 'state -> 'message Html.html
-type ('state, 'message) command_fn = ('state, 'message) instance -> 'message -> unit Lwt.t option
-type 'message emit_fn = 'message -> unit
+type ('state, 'message) view_fn = 'state -> 'message Html.html
+type ('state, 'message) command_fn = 'message -> unit Lwt.t option
 type 'message node = 'message Html.html
 
 type identity = [ `String of string | `Int of int ]
@@ -39,14 +38,14 @@ val hook :
   *)
 
 val component :
-  view:('state, 'message) view_fn ->
-  ?command:('state, 'message) command_fn ->
+  view:(('state, 'message) instance -> ('state, 'message) view_fn) ->
+  ?command:(('state, 'message) instance -> ('state, 'message) command_fn) ->
   unit -> ('state, 'message) component
 
 val root_component :
   update:('state -> 'message -> 'state) ->
-  view:('state, 'message) view_fn ->
-  ?command:('state, 'message) command_fn ->
+  view:(('state, 'message) instance -> ('state, 'message) view_fn) ->
+  ?command:(('state, 'message) instance -> ('state, 'message) command_fn) ->
   'state -> ('state, 'message) root_component
 
 val root :
@@ -54,7 +53,7 @@ val root :
   update:('state -> 'message -> 'state) ->
   'state -> ('state, 'message) root_component
 
-val emit : ('state, 'message) instance -> 'message emit_fn
+val emit : ('state, 'message) instance -> 'message -> unit
 (** Emit an update message to the given instance *)
 
 (* like `children`, but with type 'message = `child_message` - i.e. no message conversion *)
@@ -99,6 +98,14 @@ val async : ('state, 'message) instance -> unit Lwt.t -> unit
 val abort : ('state, 'message) instance -> unit
 val wait : context -> unit Lwt.t
 
+val supplantable : ('a -> 'message option Lwt.t)
+  -> ('state, 'message) instance
+  -> ('a -> unit Lwt.t)
+
+val supplantable_some : ('a -> 'message Lwt.t)
+  -> ('state, 'message) instance
+  -> ('a -> unit Lwt.t)
+
 val onload : (unit -> unit Lwt.t) -> unit
 
 val main :
@@ -125,5 +132,4 @@ val init_logging: unit -> unit
 (** ensure logging is initialized. Ui.main will call this for you *)
 
 val set_log_level: Logs.level -> unit
-(** ensure logging is initialized. Ui.main will call this for you *)
 
