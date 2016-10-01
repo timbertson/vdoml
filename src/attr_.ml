@@ -64,7 +64,6 @@ module Attr = struct
         Event_.Event.apply emit (result:>'msg Event.result)
     )
 
-
   let canonicalize_pair : 'msg t -> (string * 'msg value) = function
     | AttrKey.Property_name name, (Property _ as value) -> (name, value)
     | AttrKey.Attribute_name name, (Attribute _ as value) -> (name, value)

@@ -64,7 +64,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     emit: 'message emit_fn;
     identity: Vdom.identity;
     view: ('state, 'message) view_fn Lazy.t;
-    command: ('state, 'message) command_fn option Lazy.t;
+    (* Note: observe can be triggered via two code paths:
+     * Ui.emit instance - invoked programmatically
+     * Html on_* property which gets triggered by JS from the rendered vdom
+     *)
+    observe: 'message emit_fn Lazy.t option;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
@@ -119,36 +123,27 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let async instance th = Ui_main.async (instance.context) th
 
-  let emit instance message =
-    Log.warn (fun m->m
-      "Emitting message with command = %s"
-      (match Lazy.force instance.command with Some x -> "Some!" | None -> "None")
-    );
-    Lazy.force (instance.command)
-      |> Option.bind (fun cmd -> cmd message)
-      |> Option.may (async instance);
-    instance.emit message
-
-  let make_instance ~context ~emit:_emit ~identity component =
+  let make_instance ~context ~emit ~identity component =
     let rec instance = lazy {
       context;
-      emit=_emit;
+      emit;
+      observe = component.component_command |> Option.map (fun command ->
+        lazy (
+          let command = command (Lazy.force instance) in
+          let instance = Lazy.force instance in
+          fun message -> command message |> Option.may (async instance)
+        )
+      );
       identity;
       state = ref None;
       view = lazy (
-        (* TODO: this doesn't seem a great way to have emit called
-         * via handler attributes.
-         * Is there a way to extract the `msg-only parts of
-         * an instance into a separate type we can attach to the vdom?
-         * This might include hooks too. *)
         let instance = Lazy.force instance in
-        let emit = emit instance in
         let view = component.component_view instance in
-        fun state -> view state |> Vdom.on_emit emit
-      );
-      command = lazy (
-        component.component_command
-        |> Option.map (fun cmd -> cmd (Lazy.force instance))
+        match instance.observe with
+          | Some observe ->
+            let observe = Lazy.force observe in
+            fun state -> view state |> Vdom.event_observer observe
+          | None -> view
       );
     } in
     Lazy.force instance
@@ -165,6 +160,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       in
       instance.state := Some (state);
       state.state_view
+
+  let emit instance message =
+    instance.observe |> Option.may (fun cmd -> (Lazy.force cmd) message);
+    instance.emit message
 
   let supplantable fn =
     let ref = ref None in
@@ -206,14 +205,14 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (instance:(state, message) instance)
   =
     let open Vdom in
-    let emit = (emit instance) % message in
     let cache = ChildCache.init () in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
         state |> List.map (fun state ->
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view (make_instance
-            ~context:instance.context ~emit ~identity:id component
+            ~context:instance.context ~emit:(emit instance % message)
+            ~identity:id component
           )) in
           child state
         )

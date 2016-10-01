@@ -1,5 +1,6 @@
 open Attr_
 open Event_
+open Util_
 
 module Vdom = struct
   (* pure VDOM widgets, which have no knowledge of HTML / JS
@@ -40,7 +41,6 @@ module Vdom = struct
       e_attrs: 'msg attr AttrMap.t;
       e_children: 'msg node list;
       e_hooks: hooks;
-      e_emit: ('msg -> unit) option;
     }
 
     and 'msg raw_node = 
@@ -53,7 +53,6 @@ module Vdom = struct
 
     val transform : ('a -> 'b) -> 'a pure_node -> 'b pure_node
     val root : 'msg pure_node -> 'msg node
-
     val property_eq : 'msg internal_property -> 'msg internal_property -> bool
     val attr_eq : 'msg attr -> 'msg attr -> bool
     val js_of_property : ('msg -> unit) -> 'msg internal_property -> Js.Unsafe.any
@@ -61,7 +60,7 @@ module Vdom = struct
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
     val hook : hooks -> 'msg pure_node -> 'msg pure_node
-    val on_emit : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node
+    val event_observer : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node
     val hooks : ?create:hook -> ?destroy:hook -> unit -> hooks
     val text : string -> 'msg pure_node
     val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
@@ -77,8 +76,9 @@ module Vdom = struct
      * `root` after it has traversed the tree and applied all
      * transforms
      *)
-    type 'msg accessor = {
+    type 'msg traversal_context = {
       apply: ('msg -> 'msg);
+      observe: 'msg -> unit;
       identity: ('msg -> 'msg) list;
     }
 
@@ -94,7 +94,6 @@ module Vdom = struct
         e_attrs: 'msg attr AttrMap.t;
         e_children: 'msg node list;
         e_hooks: hooks;
-        e_emit: ('msg -> unit) option;
       }
 
     and 'msg pure_element =
@@ -103,7 +102,6 @@ module Vdom = struct
         e_pure_attrs: 'msg Attr.value AttrMap.t;
         e_pure_children: 'msg pure_node list;
         e_pure_hooks: hooks;
-        e_pure_emit: ('msg -> unit) option;
       }
 
     and 'msg attr =
@@ -120,12 +118,14 @@ module Vdom = struct
       | Pure_element of 'msg pure_element
       | Pure_text of string
 
-    and 'msg internal_property = 'msg accessor * 'msg Attr.property
+    and 'msg internal_property = 'msg traversal_context * 'msg Attr.property
 
     and 'msg pure_node =
       | Pure_anonymous of 'msg pure_raw_node
       | Pure_identified of (identity * 'msg pure_raw_node)
+      (* internal types to track Ui level concepts *)
       | Pure_transformer of 'msg type_conversion_node
+      | Pure_observer of ('msg -> unit) * 'msg pure_node
 
     and 'msg node =
       | Anonymous of 'msg raw_node
@@ -146,8 +146,11 @@ module Vdom = struct
         unsafe_content = Obj.magic pure_node;
       }
 
+    let event_observer : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node = fun observe node ->
+      Pure_observer (observe, node)
+
     let identity_eq =
-      (* Identity is a list of functions, which
+      (* Identity is a list of (unsafe-type coerced) functions, which
        * can only be compared for physical equality *)
       let rec eq a b =
         match a, b with
@@ -158,9 +161,7 @@ module Vdom = struct
       eq
 
     let property_eq (a_ctx, a) (b_ctx, b) =
-      let { identity = a_id ; apply = _a_apply } = a_ctx in
-      let { identity = b_id ; apply = _b_apply } = b_ctx in
-      identity_eq a_id b_id && Attr.property_eq a b
+      identity_eq a_ctx.identity b_ctx.identity && Attr.property_eq a b
 
     let attr_eq a b = match (a, b) with
       | Attribute a, Attribute b -> a = b
@@ -171,10 +172,17 @@ module Vdom = struct
       match value with
       | Pure_anonymous raw -> Anonymous (convert_raw ctx raw)
       | Pure_identified (id, raw) -> Identified (id, convert_raw ctx raw)
+      | Pure_observer (observe, node) ->
+          let ctx = { ctx with
+            observe = (fun msg -> observe msg; ctx.observe msg);
+            identity = Obj.magic observe :: ctx.identity;
+          } in
+          convert_node ctx node
       | Pure_transformer child ->
         let { apply; identity } = ctx in
         (* recurse with our new context *)
         let ctx = {
+          observe = ctx.observe % apply;
           apply = (fun msg -> apply (child.unsafe_convert msg));
           identity = child.unsafe_convert :: identity;
         } in
@@ -185,11 +193,10 @@ module Vdom = struct
       | Pure_text t -> Text t
 
     and convert_element ctx element =
-      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks; e_pure_emit} = element in
+      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks } = element in
       {
         e_name = e_pure_name;
         e_hooks = e_pure_hooks;
-        e_emit = e_pure_emit;
         e_attrs = e_pure_attrs |> AttrMap.map (function
           | Attr.Attribute value -> Attribute value
           | Attr.Property p -> Property (ctx, p)
@@ -200,6 +207,8 @@ module Vdom = struct
     let init = {
       apply = (fun x -> x);
       identity = [];
+      observe = ignore;
+      (* emit = ignore; *)
     }
 
     let root (node: 'msg pure_node) : 'msg node =
@@ -212,15 +221,18 @@ module Vdom = struct
       | Property _ -> Attr.string_of_attr_name name
 
     let js_of_property (emit:'msg -> unit) ((ctx, prop):'msg internal_property) =
-      let open Attr in
-      Attr.js_of_property ~emit (match prop with
-        | String_prop x -> String_prop x
-        | Event_handler handler -> Event_handler (fun e -> Event.map_msg ctx.apply (handler e))
-        | Message_emitter (msg, response) -> Message_emitter (ctx.apply msg, response)
-      )
+      let emit = fun msg ->
+        (* `emit` is the parent emit - it must be applied _after_ transformation.
+         * `observe` is an instance level element; it always expects the real message
+         * type *)
+        ctx.observe msg;
+        emit (ctx.apply msg)
+      in
+      Attr.js_of_property ~emit prop
 
     let rec identify id = function
       | Pure_anonymous node | Pure_identified (_, node) -> Pure_identified (id, node)
+      | Pure_observer (observe, node) -> Pure_observer (observe, identify id node)
       | Pure_transformer node -> Pure_transformer { node with
         unsafe_content = identify id node.unsafe_content
       }
@@ -228,6 +240,7 @@ module Vdom = struct
     let rec identify_anonymous id = function
       | Pure_anonymous node -> Pure_identified (id, node)
       | Pure_identified _ as node -> node
+      | Pure_observer (observe, node) -> Pure_observer (observe, identify_anonymous id node)
       | Pure_transformer node -> Pure_transformer { node with
         unsafe_content = identify_anonymous id node.unsafe_content
       }
@@ -244,19 +257,9 @@ module Vdom = struct
     let rec hook hooks = function
       | Pure_anonymous node -> Pure_anonymous (hook_node hooks node)
       | Pure_identified (id, node) -> Pure_identified (id, hook_node hooks node)
+      | Pure_observer (observe, node) -> Pure_observer (observe, hook hooks node)
       | Pure_transformer node -> Pure_transformer { node with
         unsafe_content = hook hooks node.unsafe_content
-      }
-
-    let rec on_emit_node emit = function
-      | Pure_text _ as e -> e (* pointless assigning an emit function to text *)
-      | Pure_element e -> Pure_element { e with e_pure_emit = Some emit }
-
-    let rec on_emit emit = function
-      | Pure_anonymous node -> Pure_anonymous (on_emit_node emit node)
-      | Pure_identified (id, node) -> Pure_identified (id, on_emit_node emit node)
-      | Pure_transformer node -> Pure_transformer { node with
-        unsafe_content = on_emit emit node.unsafe_content
       }
 
     let text (s : string) =
@@ -271,7 +274,6 @@ module Vdom = struct
       Pure_anonymous (Pure_element {
         e_pure_name = tag;
         e_pure_hooks = no_hooks;
-        e_pure_emit = None;
         e_pure_attrs = Attr.list_to_attrs a;
         e_pure_children = children
       })
