@@ -117,14 +117,39 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       root_update = update;
     }
 
-  let make_instance ~context ~emit ~identity component =
+  let async instance th = Ui_main.async (instance.context) th
+
+  let emit instance message =
+    Log.warn (fun m->m
+      "Emitting message with command = %s"
+      (match Lazy.force instance.command with Some x -> "Some!" | None -> "None")
+    );
+    Lazy.force (instance.command)
+      |> Option.bind (fun cmd -> cmd message)
+      |> Option.may (async instance);
+    instance.emit message
+
+  let make_instance ~context ~emit:_emit ~identity component =
     let rec instance = lazy {
       context;
-      emit;
+      emit=_emit;
       identity;
       state = ref None;
-      view = lazy (component.component_view (Lazy.force instance));
-      command = lazy (component.component_command |> Option.map (fun cmd -> cmd (Lazy.force instance)));
+      view = lazy (
+        (* TODO: this doesn't seem a great way to have emit called
+         * via handler attributes.
+         * Is there a way to extract the `msg-only parts of
+         * an instance into a separate type we can attach to the vdom?
+         * This might include hooks too. *)
+        let instance = Lazy.force instance in
+        let emit = emit instance in
+        let view = component.component_view instance in
+        fun state -> view state |> Vdom.on_emit emit
+      );
+      command = lazy (
+        component.component_command
+        |> Option.map (fun cmd -> cmd (Lazy.force instance))
+      );
     } in
     Lazy.force instance
 
@@ -140,18 +165,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       in
       instance.state := Some (state);
       state.state_view
-
-  let async instance th = Ui_main.async (instance.context) th
-
-  let emit instance message =
-    Log.warn (fun m->m
-      "Emitting message with command = %s"
-      (match Lazy.force instance.command with Some x -> "Some!" | None -> "None")
-    );
-    Lazy.force (instance.command)
-      |> Option.bind (fun cmd -> cmd message)
-      |> Option.may (async instance);
-    instance.emit message
 
   let supplantable fn =
     let ref = ref None in

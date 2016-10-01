@@ -180,7 +180,11 @@ module Make(Hooks:DOM_HOOKS) = struct
 
   let rec render_element ctx (e:'msg element) : dom_element =
     Log.info (fun m->m "rendering element: %s" (string_of_element e));
-    let { e_attrs; e_children; e_name; e_hooks } = e in
+    let { e_attrs; e_children; e_name; e_hooks; e_emit } = e in
+    let ctx = match e_emit with
+      | Some emit -> { emit }
+      | None -> ctx
+    in
 
     let dom = Dom_html.document##createElement(Js.string e_name) in
     e_attrs |> AttrMap.iter (set_attr ctx dom);

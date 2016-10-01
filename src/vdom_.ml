@@ -40,6 +40,7 @@ module Vdom = struct
       e_attrs: 'msg attr AttrMap.t;
       e_children: 'msg node list;
       e_hooks: hooks;
+      e_emit: ('msg -> unit) option;
     }
 
     and 'msg raw_node = 
@@ -60,6 +61,7 @@ module Vdom = struct
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
     val hook : hooks -> 'msg pure_node -> 'msg pure_node
+    val on_emit : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node
     val hooks : ?create:hook -> ?destroy:hook -> unit -> hooks
     val text : string -> 'msg pure_node
     val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
@@ -92,6 +94,7 @@ module Vdom = struct
         e_attrs: 'msg attr AttrMap.t;
         e_children: 'msg node list;
         e_hooks: hooks;
+        e_emit: ('msg -> unit) option;
       }
 
     and 'msg pure_element =
@@ -100,6 +103,7 @@ module Vdom = struct
         e_pure_attrs: 'msg Attr.value AttrMap.t;
         e_pure_children: 'msg pure_node list;
         e_pure_hooks: hooks;
+        e_pure_emit: ('msg -> unit) option;
       }
 
     and 'msg attr =
@@ -181,10 +185,11 @@ module Vdom = struct
       | Pure_text t -> Text t
 
     and convert_element ctx element =
-      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks} = element in
+      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks; e_pure_emit} = element in
       {
         e_name = e_pure_name;
         e_hooks = e_pure_hooks;
+        e_emit = e_pure_emit;
         e_attrs = e_pure_attrs |> AttrMap.map (function
           | Attr.Attribute value -> Attribute value
           | Attr.Property p -> Property (ctx, p)
@@ -243,6 +248,17 @@ module Vdom = struct
         unsafe_content = hook hooks node.unsafe_content
       }
 
+    let rec on_emit_node emit = function
+      | Pure_text _ as e -> e (* pointless assigning an emit function to text *)
+      | Pure_element e -> Pure_element { e with e_pure_emit = Some emit }
+
+    let rec on_emit emit = function
+      | Pure_anonymous node -> Pure_anonymous (on_emit_node emit node)
+      | Pure_identified (id, node) -> Pure_identified (id, on_emit_node emit node)
+      | Pure_transformer node -> Pure_transformer { node with
+        unsafe_content = on_emit emit node.unsafe_content
+      }
+
     let text (s : string) =
       Pure_anonymous (Pure_text s)
 
@@ -255,6 +271,7 @@ module Vdom = struct
       Pure_anonymous (Pure_element {
         e_pure_name = tag;
         e_pure_hooks = no_hooks;
+        e_pure_emit = None;
         e_pure_attrs = Attr.list_to_attrs a;
         e_pure_children = children
       })
