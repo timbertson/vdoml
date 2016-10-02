@@ -3,6 +3,7 @@ open Vdom_
 open Attr_
 open Ui_main_
 open Util_
+open Event_chain_
 
 module Make(Hooks:Diff_.DOM_HOOKS) = struct
   module Diff = Diff_.Make(Hooks)
@@ -61,14 +62,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   and ('state, 'message) instance = {
     context: context;
-    emit: 'message emit_fn;
+    emit: 'message emit_fn Lazy.t;
     identity: Vdom.identity;
     view: ('state, 'message) view_fn Lazy.t;
-    (* Note: observe can be triggered via two code paths:
-     * Ui.emit instance - invoked programmatically
-     * Html on_* property which gets triggered by JS from the rendered vdom
-     *)
-    observe: 'message emit_fn Lazy.t option;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
@@ -123,30 +119,46 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let async instance th = Ui_main.async (instance.context) th
 
-  let make_instance ~context ~emit ~identity component =
-    let rec instance = lazy {
-      context;
-      emit;
-      observe = component.component_command |> Option.map (fun command ->
-        lazy (
-          let command = command (Lazy.force instance) in
-          let instance = Lazy.force instance in
-          fun message -> command message |> Option.may (async instance)
-        )
-      );
-      identity;
-      state = ref None;
-      view = lazy (
+  let identity_fn x = x
+
+  let make_instance ~context ~emit ~identity (component: ('state, 'message) component) = (
+    let rec instance = lazy (
+
+      let emit, add_observer = match component.component_command with
+        | None -> (lazy emit, lazy identity_fn)
+        | Some command ->
+          let observe = lazy (
+            let instance = Lazy.force instance in
+            let command = command instance in
+            fun msg -> command msg |> Option.may (async instance)
+          ) in
+          let emit = lazy (
+            let observe = Lazy.force observe in
+            fun msg -> observe msg; emit msg
+          ) in
+          let add_observer = lazy (
+            Vdom.event_node (Event_chain.observer (Lazy.force observe))
+          ) in
+          (emit, add_observer)
+      in
+
+      let view = lazy (
         let instance = Lazy.force instance in
         let view = component.component_view instance in
-        match instance.observe with
-          | Some observe ->
-            let observe = Lazy.force observe in
-            fun state -> view state |> Vdom.event_observer observe
-          | None -> view
-      );
-    } in
+        let add_observer = Lazy.force add_observer in
+        add_observer % view
+      ) in
+
+      {
+        context;
+        emit;
+        identity;
+        state = ref None;
+        view = view;
+      }
+    ) in
     Lazy.force instance
+  )
 
   let update_and_view instance =
       let id = instance.identity in
@@ -161,9 +173,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let emit instance message =
-    instance.observe |> Option.may (fun cmd -> (Lazy.force cmd) message);
-    instance.emit message
+  let emit instance = (Lazy.force instance.emit)
 
   let supplantable fn =
     let ref = ref None in
@@ -206,17 +216,17 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   =
     let open Vdom in
     let cache = ChildCache.init () in
+    let emit, event_node = Event_chain.child message (emit instance) in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
         state |> List.map (fun state ->
           let id = User_tag (id state) in
           let child = get_or_create id (fun _ -> update_and_view (make_instance
-            ~context:instance.context ~emit:(emit instance % message)
-            ~identity:id component
+            ~context:instance.context ~emit ~identity:id component
           )) in
           child state
         )
-      ) |> List.map (Vdom.transform message)
+      ) |> List.map (Vdom.transform event_node)
 
   let collection ~id component instance = children ~id ~message:identity component instance
 
@@ -227,13 +237,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (instance:(state, message) instance)
     : child_state -> message Html.html
   =
+    let emit, event_node = Event_chain.child message (emit instance) in
     let child : (child_state, child_message) instance = (make_instance
-      ~context:(instance.context)
-      ~emit:((emit instance) % message)
-      ~identity:(gen_identity id)
-      component
+      ~context:(instance.context) ~emit ~identity:(gen_identity id) component
     ) in
-    fun state -> update_and_view child state |> Vdom.transform message
+    fun state -> update_and_view child state |> Vdom.transform event_node
 
   module Tasks = struct
     type ('state, 'message) t = {

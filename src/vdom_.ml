@@ -1,6 +1,7 @@
 open Attr_
 open Event_
 open Util_
+open Event_chain_
 
 module Vdom = struct
   (* pure VDOM widgets, which have no knowledge of HTML / JS
@@ -51,7 +52,7 @@ module Vdom = struct
       | Anonymous of 'msg raw_node
       | Identified of (identity * 'msg raw_node)
 
-    val transform : ('a -> 'b) -> 'a pure_node -> 'b pure_node
+    val transform : ('a, 'b) Event_chain.child -> 'a pure_node -> 'b pure_node
     val root : 'msg pure_node -> 'msg node
     val property_eq : 'msg internal_property -> 'msg internal_property -> bool
     val attr_eq : 'msg attr -> 'msg attr -> bool
@@ -60,7 +61,7 @@ module Vdom = struct
     val identify : identity -> 'msg pure_node -> 'msg pure_node
     val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
     val hook : hooks -> 'msg pure_node -> 'msg pure_node
-    val event_observer : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node
+    val event_node : 'msg Event_chain.node -> 'msg pure_node -> 'msg pure_node
     val hooks : ?create:hook -> ?destroy:hook -> unit -> hooks
     val text : string -> 'msg pure_node
     val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
@@ -76,11 +77,7 @@ module Vdom = struct
      * `root` after it has traversed the tree and applied all
      * transforms
      *)
-    type 'msg traversal_context = {
-      apply: ('msg -> 'msg);
-      observe: 'msg -> unit;
-      identity: ('msg -> 'msg) list;
-    }
+    type 'msg traversal_context = 'msg Event_chain.path
 
     type hook = Dom_html.element Js.t -> unit
     type hooks = {
@@ -123,45 +120,21 @@ module Vdom = struct
     and 'msg pure_node =
       | Pure_anonymous of 'msg pure_raw_node
       | Pure_identified of (identity * 'msg pure_raw_node)
-      (* internal types to track Ui level concepts *)
-      | Pure_transformer of 'msg type_conversion_node
-      | Pure_observer of ('msg -> unit) * 'msg pure_node
+      (* internal type to track event mapping between embedded components of potentially-differing types *)
+      | Pure_event_node of ('msg Event_chain.node * 'msg pure_node)
 
     and 'msg node =
       | Anonymous of 'msg raw_node
       | Identified of (identity * 'msg raw_node)
 
-    and 'msg type_conversion_node =
-      { 
-        unsafe_convert : 'msg -> 'msg; (* Note: 'a -> 'msg *)
-        unsafe_content : 'msg pure_node; (* NOTE: this is actually 'a pure_node *)
-      }
+    let event_node : 'msg Event_chain.node -> 'msg pure_node -> 'msg pure_node = fun converter pure_node ->
+      Pure_event_node (converter, pure_node)
 
-    (* Note: for efficient Vdom diffing, `fn` should be statically-defined
-     * rather than an anonymous function, as it's used in equality checking
-     *)
-    let transform : ('a -> 'b) -> 'a pure_node -> 'b pure_node = fun convert pure_node ->
-      Pure_transformer {
-        unsafe_convert = Obj.magic convert;
-        unsafe_content = Obj.magic pure_node;
-      }
-
-    let event_observer : ('msg -> unit) -> 'msg pure_node -> 'msg pure_node = fun observe node ->
-      Pure_observer (observe, node)
-
-    let identity_eq =
-      (* Identity is a list of (unsafe-type coerced) functions, which
-       * can only be compared for physical equality *)
-      let rec eq a b =
-        match a, b with
-          | [], [] -> true
-          | a::aa, b::bb -> a == b && eq aa bb
-          | [], _ | _, [] -> false
-      in
-      eq
+    let transform : ('child_msg, 'msg) Event_chain.child -> 'child_msg pure_node -> 'msg pure_node = fun converter pure_node ->
+      Pure_event_node (Event_chain.unsafe_coerce converter, Obj.magic pure_node)
 
     let property_eq (a_ctx, a) (b_ctx, b) =
-      identity_eq a_ctx.identity b_ctx.identity && Attr.property_eq a b
+      Event_chain.eq a_ctx b_ctx && Attr.property_eq a b
 
     let attr_eq a b = match (a, b) with
       | Attribute a, Attribute b -> a = b
@@ -172,21 +145,9 @@ module Vdom = struct
       match value with
       | Pure_anonymous raw -> Anonymous (convert_raw ctx raw)
       | Pure_identified (id, raw) -> Identified (id, convert_raw ctx raw)
-      | Pure_observer (observe, node) ->
-          let ctx = { ctx with
-            observe = (fun msg -> observe msg; ctx.observe msg);
-            identity = Obj.magic observe :: ctx.identity;
-          } in
-          convert_node ctx node
-      | Pure_transformer child ->
-        let { apply; identity } = ctx in
-        (* recurse with our new context *)
-        let ctx = {
-          observe = ctx.observe % apply;
-          apply = (fun msg -> apply (child.unsafe_convert msg));
-          identity = child.unsafe_convert :: identity;
-        } in
-        convert_node ctx child.unsafe_content
+      | Pure_event_node (evt, node) ->
+        let ctx = Event_chain.enter evt ctx in
+        convert_node ctx node
 
     and convert_raw ctx = function
       | Pure_element e -> Element (convert_element ctx e)
@@ -204,15 +165,8 @@ module Vdom = struct
         e_children = e_pure_children |> List.map (convert_node ctx);
       }
 
-    let init = {
-      apply = (fun x -> x);
-      identity = [];
-      observe = ignore;
-      (* emit = ignore; *)
-    }
-
     let root (node: 'msg pure_node) : 'msg node =
-      convert_node init node
+      convert_node Event_chain.init node
 
     let element_name (ctx, { e_pure_name; _}) = e_pure_name
 
@@ -220,30 +174,18 @@ module Vdom = struct
       | Attribute value -> Attr.string_of_attr (name, Attr.Attribute value)
       | Property _ -> Attr.string_of_attr_name name
 
-    let js_of_property (emit:'msg -> unit) ((ctx, prop):'msg internal_property) =
-      let emit = fun msg ->
-        (* `emit` is the parent emit - it must be applied _after_ transformation.
-         * `observe` is an instance level element; it always expects the real message
-         * type *)
-        ctx.observe msg;
-        emit (ctx.apply msg)
-      in
+    let js_of_property (type msg) (emit:msg -> unit) ((ctx, prop):msg internal_property) =
+      let emit = Event_chain.emit ~toplevel:emit ctx in
       Attr.js_of_property ~emit prop
 
     let rec identify id = function
       | Pure_anonymous node | Pure_identified (_, node) -> Pure_identified (id, node)
-      | Pure_observer (observe, node) -> Pure_observer (observe, identify id node)
-      | Pure_transformer node -> Pure_transformer { node with
-        unsafe_content = identify id node.unsafe_content
-      }
+      | Pure_event_node (evt, node) -> Pure_event_node (evt, identify id node)
 
     let rec identify_anonymous id = function
       | Pure_anonymous node -> Pure_identified (id, node)
       | Pure_identified _ as node -> node
-      | Pure_observer (observe, node) -> Pure_observer (observe, identify_anonymous id node)
-      | Pure_transformer node -> Pure_transformer { node with
-        unsafe_content = identify_anonymous id node.unsafe_content
-      }
+      | Pure_event_node (evt, node) -> Pure_event_node (evt, identify_anonymous id node)
 
     let hooks ?create ?destroy () = {
       hook_create = create;
@@ -257,10 +199,7 @@ module Vdom = struct
     let rec hook hooks = function
       | Pure_anonymous node -> Pure_anonymous (hook_node hooks node)
       | Pure_identified (id, node) -> Pure_identified (id, hook_node hooks node)
-      | Pure_observer (observe, node) -> Pure_observer (observe, hook hooks node)
-      | Pure_transformer node -> Pure_transformer { node with
-        unsafe_content = hook hooks node.unsafe_content
-      }
+      | Pure_event_node (evt, node) -> Pure_event_node (evt, hook hooks node)
 
     let text (s : string) =
       Pure_anonymous (Pure_text s)
