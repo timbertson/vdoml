@@ -62,7 +62,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   and ('state, 'message) instance = {
     context: context;
-    emit: 'message emit_fn Lazy.t;
+    emit: 'message emit_fn ref;
     identity: Vdom.identity;
     view: ('state, 'message) view_fn Lazy.t;
     (* This is a bit lame - because we can't encode state in the vdom,
@@ -121,20 +121,45 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let identity_fn x = x
 
-  let make_instance ~context ~emit ~identity (component: ('state, 'message) component) = (
+  let make_instance (type message) (type state)
+    ~context
+    ~(emit:message emit_fn)
+    ~identity
+    (component: (state, message) component) =
+  (
     let rec instance = lazy (
-
       let emit, add_observer = match component.component_command with
-        | None -> (lazy emit, lazy identity_fn)
+        | None -> (emit, lazy identity_fn)
         | Some command ->
           let observe = lazy (
             let instance = Lazy.force instance in
             let command = command instance in
             fun msg -> command msg |> Option.may (async instance)
           ) in
-          let emit = lazy (
-            let observe = Lazy.force observe in
-            fun msg -> observe msg; emit msg
+          let emit msg =
+            let actually_emit msg =
+              (* emit and overwrite instance.emit so that
+               * further calls go straight through *)
+              let instance = Lazy.force instance in
+              let observe = Lazy.force observe in
+              let emit = fun msg -> observe msg; emit msg in
+              instance.emit := emit;
+              emit msg
+            in
+            if Lazy.is_val observe then (
+              (* already forced; we can go right ahead *)
+              actually_emit msg
+            ) else (
+              (* emit is being called during definition
+               * of instance (most likely `command instance` is calling
+               * `emit`). That's OK, but queue this message so we can
+               * dispatch it once `observe` is actually defined
+               *)
+              Log.debug (fun m -> m "observe not yet initialized; enqueueing message");
+              let open Lwt in
+              Lwt_js.yield ()
+                >>= (fun () -> return (actually_emit msg))
+                |> Ui_main.async context
           ) in
           let add_observer = lazy (
             Vdom.event_node (Event_chain.observer (Lazy.force observe))
@@ -151,10 +176,10 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
       {
         context;
-        emit;
+        emit = ref emit;
         identity;
         state = ref None;
-        view = view;
+        view;
       }
     ) in
     Lazy.force instance
@@ -173,7 +198,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let emit instance = (Lazy.force instance.emit)
+  let emit instance = !(instance.emit)
 
   let supplantable fn =
     let ref = ref None in
