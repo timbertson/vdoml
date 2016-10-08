@@ -1,3 +1,5 @@
+exception Assertion_error of string
+
 let identity x = x
 
 let (%) f g = fun x -> f (g x)

@@ -3,8 +3,6 @@ open Vdom_
 open Attr_
 open Util_
 
-exception Assertion_error of string
-
 module type DOM_HOOKS = sig
   val on_create : Dom_html.element Js.t -> unit
   val on_destroy : Dom_html.element Js.t -> unit

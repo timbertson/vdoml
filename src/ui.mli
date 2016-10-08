@@ -13,7 +13,7 @@ type ('state, 'message) component
 type ('state, 'message) root_component
 type ('state, 'message) instance
 type ('state, 'message) view_fn = 'state -> 'message Html.html
-type ('state, 'message) command_fn = 'message -> unit Lwt.t option
+type ('state, 'message) command_fn = 'state -> 'message -> unit Lwt.t option
 type 'message node = 'message Html.html
 
 type identity = [ `String of string | `Int of int ]

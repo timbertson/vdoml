@@ -47,7 +47,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   and ('state, 'message) view_fn = 'state -> 'message Html.html
   and ('state, 'message) update_fn = 'state -> 'message -> 'state
-  and ('state, 'message) command_fn = 'message -> unit Lwt.t option
+  and ('state, 'message) command_fn = 'state -> 'message -> unit Lwt.t option
 
   and ('state, 'message) component = {
     component_view: ('state, 'message) instance -> ('state, 'message) view_fn;
@@ -134,7 +134,12 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
           let observe = lazy (
             let instance = Lazy.force instance in
             let command = command instance in
-            fun msg -> command msg |> Option.may (async instance)
+            fun msg ->
+              let state = match !(instance.state) with
+                | Some state -> state.state_val
+                | None -> raise (Assertion_error "command invoked on an instance with no state")
+              in
+              command state msg |> Option.may (async instance)
           ) in
           let emit msg =
             let actually_emit msg =
@@ -142,7 +147,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
                * further calls go straight through *)
               let instance = Lazy.force instance in
               let observe = Lazy.force observe in
-              let emit = fun msg -> observe msg; emit msg in
+              (* Note: must emit before observe, otherwise state may be None *)
+              let emit = fun msg -> emit msg; observe msg in
               instance.emit := emit;
               emit msg
             in
@@ -221,10 +227,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let supplantable_some fn = supplantable (Lwt.map (fun x -> Some x) % fn)
 
   let bind instance handler = (fun evt ->
-    (* XXX this relies on never rendering any instance
-     * twice in the DOM tree. That seems like a good restriction,
-     * but it's not enforced anywhere
-     *)
     match !(instance.state) with
     | Some state -> handler state.state_val evt
     | None -> Event.unhandled
@@ -348,7 +350,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
           | None -> fun () -> (Dom_html.document##.body)
           | Some id -> fun () -> Js.Opt.get
             (Dom_html.document##getElementById (Js.string id))
-            (fun () -> raise (Diff_.Assertion_error ("Element with id " ^ id ^ " not found")))
+            (fun () -> raise (Assertion_error ("Element with id " ^ id ^ " not found")))
       )
     in
     let instance, main = render ?tasks component (get_root ()) in
