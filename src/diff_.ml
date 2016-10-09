@@ -155,13 +155,28 @@ module Make(Hooks:DOM_HOOKS) = struct
     in
     loop ()
 
+  let set_property_if_changed = 
+    (* Ocaml doesn't expose easy access to the `===`
+     * operator, so implement this in JS:
+     *)
+    let open Js.Unsafe in
+    let fn = js_expr ("(
+      function(elem, key, value) {
+        if (elem[key] !== value) {
+          elem[key] = value;
+        }
+      })") in
+    fun elem key value ->
+      fun_call fn [|inject elem; inject key; inject value|]
+
   let set_attr ctx (element:dom_element) (key:AttrKey.t) (value:'msg Vdom.attr) : unit =
+
     let open Attr in
     match key, value with
       | AttrKey.Attribute_name key, Attribute value ->
           element##(setAttribute (Js.string key) (Js.string value))
       | AttrKey.Property_name key, Property value ->
-          Js.Unsafe.set element (Js.string key) (Vdom.js_of_property ctx.emit value)
+          set_property_if_changed element (Js.string key) (Vdom.js_of_property ctx.emit value)
       | _ -> failwith "impossible!"
 
   let remove_attr (element:dom_element) (key:AttrKey.t) : unit =
@@ -222,6 +237,7 @@ module Make(Hooks:DOM_HOOKS) = struct
   let update_attributes ctx previous current (`Target_element (element, _)) : unit =
     let old_attrs = ref previous in
     let new_values = current |> AttrMap.filter (fun key value ->
+      old_attrs := AttrMap.remove key !old_attrs;
       let matches_existing_value = try
         AttrMap.find key previous |> attr_eq value
       with Not_found -> false
@@ -229,20 +245,19 @@ module Make(Hooks:DOM_HOOKS) = struct
       if matches_existing_value then (
         (* skip it *)
         Log.debug (fun m -> m "attr unchanged: %s" (string_of_attr (key, value)));
-        old_attrs := AttrMap.remove key !old_attrs;
         false
       ) else true
     ) in
 
-    (* any old_values that aren't identical in the new view *)
+    (* any old_values that aren't present in the new view *)
     !old_attrs |> AttrMap.iter (fun key _ ->
       Log.info (fun m -> m "removing old attr: %s" (Attr.string_of_attr_name key));
       remove_attr element key
     );
 
     (* Once all the old stuff is gone, add the new values. We need to do
-     * this last in case e.g. an attribute switches to a property, in which
-     * case unsetting the old value might clobber the new one *)
+     * this last because in theory a new property and old attribute could
+     * refer to the same underlying property *)
     if not (AttrMap.is_empty new_values) then (
       Log.info (fun m ->
         let attrs = new_values |> AttrMap.bindings |> List.map string_of_attr in
