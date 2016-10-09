@@ -77,8 +77,7 @@ val child :
   -> ?id:identity
   -> ('child_state, 'child_message) component
   -> ('state, 'message) instance
-  -> 'child_state
-  -> 'message Html.html
+  -> ('child_state -> 'message Html.html)
 
 val bind : ('state, 'message) instance
   -> ('state -> 'arg -> 'msg Event.result)

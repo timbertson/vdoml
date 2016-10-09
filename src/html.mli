@@ -7,6 +7,9 @@ type 'msg event_handler
 val emitter : ?response:Event.response -> 'msg-> 'msg event_handler
 val handler: (Dom_html.event Js.t -> 'msg Event.result) -> 'msg event_handler
 
+(* use with a_oninput or a_onblur *)
+val track_input_contents : (string -> 'msg) -> 'msg event_handler
+
 (* General HTML builders *)
 (* TyXML
  * http://www.ocsigen.org/tyxml

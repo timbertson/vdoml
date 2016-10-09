@@ -1,5 +1,6 @@
 open Vdom_
 open Attr_
+open Util_
 
 type 'msg html = 'msg Vdom.html
 type 'msg attr = 'msg Attr.optional
@@ -711,3 +712,12 @@ let link ~href ?(a = []) () =
   leaf ~a: ((a_href href) :: a) "link"
 
 let base ?a () = terminal "base" ?a ()
+
+(* ------ *)
+
+let track_input_contents constructor = (handler (fun evt ->
+  Event.input_contents evt |> Option.map (fun text ->
+    Event.return `Unhandled (constructor text)
+  ) |> Event.optional)
+)
+
