@@ -27,6 +27,8 @@ let a_on event handler =
 
 let text = Vdom.text
 
+let empty = Obj.magic (text "") (* workaround monomorphism *)
+
 (* --------- *)
 
 let float_attrib name value : 'msg attr = attr name (string_of_float value)

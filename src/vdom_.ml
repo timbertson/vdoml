@@ -201,8 +201,7 @@ module Vdom = struct
       | Pure_identified (id, node) -> Pure_identified (id, hook_node hooks node)
       | Pure_event_node (evt, node) -> Pure_event_node (evt, hook hooks node)
 
-    let text (s : string) =
-      Pure_anonymous (Pure_text s)
+    let text (s : string) = Pure_anonymous (Pure_text s)
 
     let no_hooks = {
       hook_create = None;

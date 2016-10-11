@@ -91,7 +91,6 @@ module Make(Hooks:DOM_HOOKS) = struct
     | `Target_element _ as t -> t
     | `Target_node (node, parent) -> `Target_element (force_element_of_node node, parent)
 
-
   let run_hook element = function
     | None -> ()
     | Some hook -> hook element

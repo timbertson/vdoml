@@ -732,6 +732,7 @@ val entity : string -> 'msg html
 
 val space : unit -> 'msg html
 
+val empty : 'msg html
 
 (** {3 Interactive} *)
 
