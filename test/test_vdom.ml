@@ -1,41 +1,38 @@
 open Test_util
 include Init
-open Vdom.Html
+open Vdoml
+open Html
 
 let string_of_dom elem =
 	elem##.innerHTML |> Js.to_string
 
 let string_of_vdom vdom =
 	let elem = Dom_html.document##createElement(Js.string "div") in
-	Vdom.Diff.init vdom elem;
+	let _ = Diff.init ~emit:ignore vdom elem in
 	string_of_dom elem
 
 type runner = {
 	dom_string : unit -> string;
 	dom_node : unit -> Dom_html.element Js.t;
-	update : Vdom.node -> unit;
+	update : unit html -> unit;
 }
 
 let run_vdom initial fn =
 	let elem = Dom_html.document##createElement(Js.string "div") in
-	Vdom.Diff.init initial elem;
-	let current = ref initial in
+	let current = ref (Diff.init ~emit:ignore initial elem) in
 	let runner = {
 		dom_string = (fun () -> string_of_dom elem);
 		dom_node = (fun () ->
 			Js.Opt.bind elem##.firstChild Dom_html.CoerceTo.element |> force_opt
 		);
 		update = (fun vdom ->
-			Vdom.Diff.update !current vdom elem;
-			current := vdom
+			current := Diff.update !current vdom elem
 		);
 	} in
 	fn runner
 
 let simple_html =
-	div ~a:[a_class ["active"]] [
-		pcdata "child text"
-	]
+	div ~a:[a_class "active"] [text "child text"]
 
 let simple_html_str = "<div class=\"active\">child text</div>"
 
@@ -60,9 +57,7 @@ let%TEST_UNIT "node type change" =
 
 let%TEST_UNIT "property change" =
 	let checkbox checked =
-		let attrs = [a_input_type `Checkbox] in
-		let attrs = if checked then (a_checked `Checked)::attrs else attrs in
-		input ~a:attrs ()
+		input ~a:[a_input_type `Checkbox; a_checked checked] ()
 	in
 	run_vdom (checkbox false) (fun runner ->
 		let is_checked () = (runner.dom_node()

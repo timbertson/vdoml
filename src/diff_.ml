@@ -91,17 +91,19 @@ module Make(Hooks:DOM_HOOKS) = struct
     | `Target_element _ as t -> t
     | `Target_node (node, parent) -> `Target_element (force_element_of_node node, parent)
 
+  let raw_of_node = function
+    | Anonymous raw -> raw
+    | Identified (_, raw) -> raw
+
   let run_hook element = function
     | None -> ()
     | Some hook -> hook element
 
-  let rec has_removal_hooks_raw = function
+  let rec has_removal_hooks_raw : 'msg raw_node -> bool = function
     | Element e -> has_removal_hooks_elem e
     | Text _ -> false
 
-  and has_removal_hooks = function
-    | Anonymous raw -> has_removal_hooks_raw raw
-    | Identified (_, raw) -> has_removal_hooks_raw raw
+  and has_removal_hooks node = has_removal_hooks_raw (raw_of_node node)
 
   and has_removal_hooks_elem element =
     match element.e_hooks.hook_destroy with
@@ -121,23 +123,26 @@ module Make(Hooks:DOM_HOOKS) = struct
         | Some hook -> hook node
         | None -> ()
 
-  and call_removal_hooks content node = match content with
-    | Anonymous raw -> call_removal_hooks_raw raw node
-    | Identified (_, raw) -> call_removal_hooks_raw raw node
+  and call_removal_hooks content node = call_removal_hooks_raw (raw_of_node content) node
 
-  let remove_dom : [< element_target | node_target ] -> unit = function
-      | `Target_node (old, parent) -> Dom.removeChild parent old
-      | `Target_element (old, parent) ->
-        Hooks.on_destroy old;
-        Dom.removeChild parent old
+  let remove_dom (target:[< element_target | node_target ]) =
+    let vdom_element, node, parent = match target with
+      | `Target_element (old, parent) -> (Some old, (old:>dom_any), parent)
+      | `Target_node (old, parent) ->
+        (Dom_html.CoerceTo.element old |> Js.Opt.to_option, old, parent)
+    in
+    vdom_element |> Option.may Hooks.on_destroy;
+    Dom.removeChild parent node
 
-  let remove : 'msg node -> [<target] -> unit = fun vdom node ->
+  let remove_raw : 'msg raw_node -> [<target] -> unit = fun vdom node ->
     (* Removal hooks are rare, but invoking them requires full DOM traversal. Check
      * if any exist in this subtree before bothering with the DOM. *)
-    if has_removal_hooks vdom then (
-      call_removal_hooks vdom (node_of_target node)
+    if has_removal_hooks_raw vdom then (
+      call_removal_hooks_raw vdom (node_of_target node)
     );
     remove_dom node
+
+  let remove (vdom: 'msg node) (node:[<target]) = remove_raw (raw_of_node vdom) node
 
   let add_child ~parent (pos:child_position) (child:dom_any) : unit =
     Dom.insertBefore parent child (match pos with
@@ -207,9 +212,7 @@ module Make(Hooks:DOM_HOOKS) = struct
     | Element e -> (render_element ctx e :> dom_any)
     | Text t -> (render_text t :> dom_any)
 
-  and render ctx : 'msg node -> dom_any = function
-    | Anonymous raw -> render_raw ctx raw
-    | Identified (_, raw) -> render_raw ctx raw
+  and render ctx : 'msg node -> dom_any = render_raw ctx % raw_of_node
 
   let replace_contents ~(target:[<target]) vdom contents =
     Log.info (fun m -> m "replacing contents");
@@ -265,111 +268,263 @@ module Make(Hooks:DOM_HOOKS) = struct
     );
     new_values |> AttrMap.iter (set_attr ctx element)
 
-  let rec update_children ctx (previous:'msg node list) (current:'msg node list) (`Target_element (parent, _)) : unit = (
-    let previous_remaining = ref previous in
+  (* just used to track child node mutations *)
+  type 'msg node_mutation =
+    | Update of 'msg raw_node * 'msg raw_node
+    | Insert of 'msg node
+    | Append of 'msg node
+    | Remove of 'msg raw_node
+    | Skip
+
+  type 'msg mutation_state = {
+    excess_new_nodes: int;
+    dom_idx: int;
+    remaining_nodes: 'msg node list; (* TODO: rename remaining_existing *)
+    rev_processed_nodes: 'msg node list;
+  }
+
+  (* tails a list, ignoring empty *)
+  let drop_one = function | [] -> [] | _head::tail -> tail
+
+  (* Actual DOM manipulation. Substituable for a dummy in test code,
+   * leaving the rest of the code pure *)
+  let rec apply_child_mutation
+    : ctx:'msg ctx -> parent:dom_element ->
+      ('msg node_mutation -> 'msg mutation_state -> unit)
+    = fun ~ctx ~parent -> (
     let force_dom_node idx : dom_any = nth_child parent idx |> force_option in
+    fun (mutation:'msg node_mutation) { dom_idx; _ } -> (
+      match mutation with
+        | Update (existing, replacement) ->
+          Log.debug (fun m ->
+            m "node %s matched existing node %s"
+            (string_of_raw replacement)
+            (string_of_raw existing));
+          update_raw ctx existing replacement
+            (`Target_node (force_dom_node dom_idx, parent))
+        | Insert replacement ->
+          Log.info (fun m -> m "inserting before existing node at idx %d" dom_idx);
+          add_child ~parent (Before (force_dom_node dom_idx)) (render ctx replacement)
+        | Append replacement ->
+          add_child ~parent Append (render ctx replacement)
+        | Remove existing ->
+          Log.info (fun m -> m "removing node %s" (string_of_raw existing));
+          remove_raw existing (`Target_node (force_dom_node dom_idx, parent))
+        | Skip -> ()
+    )
+  )
+
+  and lift_mutator
+    (apply_mutation:'msg node_mutation -> 'msg mutation_state -> unit)
+    : ('msg node_mutation -> 'msg mutation_state -> 'msg mutation_state) =
+  (
+    fun mutation ({ excess_new_nodes; dom_idx; remaining_nodes; rev_processed_nodes } as state) ->
+      apply_mutation mutation state;
+      match mutation with
+      | Update (existing, replacement) ->
+        let dom_idx = dom_idx + 1 in (
+          match remaining_nodes with
+            | existing::tail ->
+              let existing = match existing with
+                | Anonymous _ -> Anonymous replacement
+                | Identified (id, _) -> Identified (id, replacement)
+              in
+              { excess_new_nodes; dom_idx;
+                remaining_nodes = tail;
+                rev_processed_nodes = existing::rev_processed_nodes;
+              }
+            | [] ->
+              { excess_new_nodes; dom_idx; remaining_nodes; rev_processed_nodes }
+        )
+      | Insert node ->
+        {
+          excess_new_nodes = excess_new_nodes - 1;
+          dom_idx = dom_idx + 1;
+          remaining_nodes;
+          rev_processed_nodes = node::rev_processed_nodes;
+        }
+      | Append node ->
+        {
+          excess_new_nodes = excess_new_nodes - 1;
+          dom_idx = dom_idx + 2; (* shouldn't actually matter since we shouldn't use this variable after appending *)
+          remaining_nodes;
+          rev_processed_nodes = node::rev_processed_nodes;
+        }
+      | Remove _ ->
+        {
+          excess_new_nodes = excess_new_nodes + 1;
+          dom_idx;
+          remaining_nodes = drop_one state.remaining_nodes;
+          rev_processed_nodes;
+        }
+      | Skip -> (match remaining_nodes with
+        | [] -> raise (Assertion_error "Skip called with no existing nodes")
+        | existing::tail -> {
+          excess_new_nodes;
+          dom_idx = dom_idx + 1;
+          remaining_nodes = tail;
+          rev_processed_nodes = existing :: rev_processed_nodes;
+        }
+      )
+  )
+
+  (* TODO: use existing / replacement everywhere instead of previous / current *)
+  and update_children
+    ?(apply_mutation:('msg node_mutation -> 'msg mutation_state -> unit) option)
+    ctx (existing:'msg node list) (replacements:'msg node list)
+    (`Target_element (parent, _)) : unit =
+  (
 
     Log.debug (fun m -> m "processing %d children (currently there are %d)"
-      (List.length current)
-      (List.length previous)
+      (List.length replacements)
+      (List.length existing)
     );
 
-    current |> List.iteri (fun idx current_child ->
-      Log.debug (fun m -> m "processing node %s at idx %d"
-        (string_of_node current_child) idx);
-      match !previous_remaining with
-        | [] -> add_child ~parent Append (render ctx current_child)
-        | previous_child :: previous_remaining_tail -> (
-          let previous_matching_child = (match current_child with
-            | Identified (current_id, _) -> (
-              !previous_remaining |> find_option (function
-                | Identified (id, _) as result when Identity.eq id current_id -> Some result
-                | _ -> None
-              )
-            )
-            | Anonymous current_child -> (match (previous_child, current_child) with
-              (* Note: we don't do any lookahead for anonymous nodes, chances of a good
-               * match in the face of reordering is slim anyway *)
-              | (
-                  Anonymous (Element { e_name = previous_element_name ; _ }),
-                  (Element { e_name = current_element_name ; _ })
-                ) when previous_element_name = current_element_name ->
-                Log.debug (fun m ->
-                  m "found matching element for %s" (string_of_raw current_child));
-                Some (previous_child)
-              | Anonymous (Text _), Text _ -> Some (previous_child)
-              | _ ->
-                Log.debug (fun m -> m "Existing node is %s, which is not suitable for %s"
-                  (string_of_node previous_child)
-                  (string_of_raw current_child));
-                None
-            )
-          ) in
-          match previous_matching_child with
-            | None -> (* No match found; just insert it *)
-              Log.info (fun m -> m "inserting before existing node at idx %d" idx);
-              add_child ~parent (Before (force_dom_node idx)) (render ctx current_child)
-            | Some previous_matching_child when previous_matching_child == previous_child ->
-              (* no reordering required *)
-              Log.debug (fun m ->
-                m "node %s matched existing node %s"
-                (string_of_node current_child)
-                (string_of_node previous_matching_child));
-
-              previous_remaining := previous_remaining_tail;
-              update_node ctx previous_matching_child current_child (`Target_node (force_dom_node idx, parent))
-            | Some previous_matching_child -> (
-              (* we found it further in the list, not at the current element.
-               * Note: we could do better if we rearranged nodes, but right now just
-               * dropping everyone in the way will do well enough *)
-              let rec remove_leading_nodes = (function
-                | [] -> failwith "end of list reached in remove_leading_nodes"
-                | candidate :: tail ->
-                  if candidate == previous_matching_child
-                  then tail
-                  else (
-                    Log.info (fun m -> m "removing node %s" (string_of_node candidate));
-                    remove candidate (`Target_node (force_dom_node idx, parent));
-                    remove_leading_nodes tail
-                  )
-              ) in
-              previous_remaining := remove_leading_nodes !previous_remaining;
-
-              Log.debug (fun m ->
-                m "updating node %s -> %s"
-                (string_of_node previous_matching_child)
-                (string_of_node current_child));
-
-              update_node ctx
-                previous_matching_child
-                current_child
-                (`Target_node (force_dom_node idx, parent))
-            )
-        )
-    );
-
-    let rec remove_trailing_nodes = fun expected idx -> (
-      match expected, nth_child parent idx with
-        | [], None -> ()
-        | vdom_node::expected, Some node ->
-          Log.info (fun m -> m "Removing node at idx %d (for %s)"
-            idx (string_of_node vdom_node));
-          remove vdom_node (`Target_node (node, parent));
-          remove_trailing_nodes expected idx
-        | [], Some _ -> raise (Assertion_error ("Expected no more trailing DOM nodes at idx " ^ (string_of_int idx)))
-        | node::_, None -> raise (Assertion_error (
-            "Expected a trailing DOM node at idx "
-            ^ (string_of_int idx)
-            ^ ": for VDOM "
-            ^ (string_of_node node)
-          ))
+    let apply = lift_mutator (match apply_mutation with
+      | Some app -> app
+      | None -> apply_child_mutation ~ctx ~parent
     ) in
-    Log.debug (fun m ->
-      m "Removing %d trailing nodes after updating %d to %d"
-      (List.length !previous_remaining)
-      (List.length previous)
-      (List.length current));
-    remove_trailing_nodes !previous_remaining (List.length current);
+
+    let rec compatible_anon candidate replacement =
+      match candidate, replacement with
+        | Text _, Text _ -> true
+        | (
+            (Element { e_name = existing_element_name ; _ }),
+            (Element { e_name = replacement_element_name ; _ })
+          ) when existing_element_name = replacement_element_name ->
+            true
+        | _ -> false
+
+    and process_replacement_identified candidate id replacement state = (
+      failwith "TODO"
+    )
+
+    and process_replacement_anon (candidate:'msg raw_node) (replacement:'msg raw_node) state = (
+      if compatible_anon candidate replacement then (
+          Log.debug (fun m ->
+            m "found matching element for %s" (string_of_raw replacement));
+          apply (Update (candidate, replacement)) state
+      ) else (
+        Log.debug (fun m -> m "Existing node is %s, which is not suitable for %s"
+          (string_of_raw candidate)
+          (string_of_raw replacement));
+        search_and_replace_anon candidate replacement state
+      )
+    )
+
+    and search_and_replace_anon (candidate:'msg raw_node) (replacement:'msg raw_node) state = (
+      if state.excess_new_nodes > 0 then (
+        (* assume this is a new node *)
+        apply (Insert (Anonymous replacement)) state
+      ) else if state.excess_new_nodes < 0 then (
+        (* Assume it got deleted. Remove and try again *)
+        state |> apply (Remove candidate) |> process_anon replacement
+      ) else (
+        (* no hint as to whether there are added or removed nodes.
+         * Try a simple lookahead of 1 *)
+        let rec lookahead state = (
+          match state.remaining_nodes with
+            | [] -> raise (Assertion_error "unexpected end of existing elements")
+            | _candidate::[] ->
+              assert (Anonymous candidate == _candidate);
+              (* this was the last element *)
+              state |> apply (Remove candidate) |> apply (Append (Anonymous replacement))
+            | _candidate::next_candidate::_ ->
+              assert (Anonymous candidate == _candidate);
+              (match next_candidate with
+                | Identified _ ->
+                  state |> apply Skip |> lookahead
+                | Anonymous next_candidate ->
+                  if (compatible_anon next_candidate replacement) then (
+                    (* lookahead found a match; skip an element and update the next *)
+                    state
+                      |> apply (Remove candidate)
+                      |> apply (Update (next_candidate, replacement))
+                  ) else (
+                    (* no match, just insert the new node. This will lead to a positive
+                     * excess_new_nodes so the next `replacement` will effectively get
+                     * a look-behind of 1 *)
+                    apply (Insert (Anonymous replacement)) state
+                  )
+              )
+        ) in
+        lookahead state
+      )
+    )
+
+    and process_anon replacement state = (
+      Log.debug (fun m -> m "processing node %s at idx %d" (string_of_raw replacement) state.dom_idx);
+      match state.remaining_nodes with
+        | [] -> apply (Append (Anonymous replacement)) state
+        | Identified _ :: _ ->
+          state |> apply Skip |> process_anon replacement
+        | Anonymous candidate :: _ ->
+          process_replacement_anon candidate replacement state
+    )
+
+    and process_identified ~node id replacement state = (
+      Log.debug (fun m -> m "processing node %s at idx %d"
+        (string_of_raw replacement) state.dom_idx);
+      match state.remaining_nodes with
+        | [] -> apply (Append node) state
+        | Anonymous candidate :: _ ->
+          state |> apply Skip |> process_identified ~node id replacement
+        | Identified (id, candidate) :: _ ->
+          process_replacement_identified candidate id replacement state
+    )
+    in
+
+    (* end of definitions *)
+
+    let count_pair = fun state node -> match (state,node) with
+      | (id, anon), Identified _ -> (id + 1, anon)
+      | (id, anon), Anonymous _ -> (id, anon + 1)
+    in
+
+    let (num_existing_id, num_existing_anon) = List.fold_left count_pair (0,0) existing in
+    let (num_replacement_id, num_replacement_anon) = List.fold_left count_pair (0,0) replacements in
+
+    (* process all identified nodes first *)
+    let state = {
+      excess_new_nodes = num_replacement_id - num_existing_id;
+      dom_idx = 0;
+      remaining_nodes = existing;
+      rev_processed_nodes = [];
+    } in
+    (* update *)
+    let state = List.fold_left (fun state -> function
+      | Identified (id, replacement) as node -> process_identified ~node id replacement state
+      | Anonymous _ -> state
+    ) state replacements in
+    (* remove excess *)
+    (* TODO: dedupe? This is very similar to the following block *)
+    let state = List.fold_left (fun state -> function
+      | Identified (_, expected) -> apply (Remove expected) state
+      | Anonymous _ -> apply Skip state
+    ) state state.remaining_nodes in
+
+    (* ensure all nodes were processed *)
+    assert (state.remaining_nodes = []);
+
+
+    (* then process all anonymous nodes *)
+    let state = {
+      excess_new_nodes = num_replacement_anon - num_existing_anon;
+      dom_idx = 0;
+      (* ensure all nodes were processed *)
+      remaining_nodes = List.rev (state.rev_processed_nodes);
+      rev_processed_nodes = [];
+    } in
+    let state = List.fold_left (fun state -> function
+      | Anonymous replacement -> process_anon replacement state
+      | Identified _ -> state
+    ) state replacements in
+    let state = List.fold_left (fun state -> function
+      | Identified _ -> apply Skip state
+      | Anonymous expected_node -> apply (Remove expected_node) state
+    ) state state.remaining_nodes in
+
+    ignore (state: 'msg mutation_state)
   )
 
   and replace_text : dom_text -> string -> unit = fun target current ->
@@ -427,7 +582,7 @@ module Make(Hooks:DOM_HOOKS) = struct
       | None -> Append
     ) (render ctx (Internal.root state))
 
-  (* Public API: *)
+  (* Module-external API: *)
   let init ~emit (current:'msg pure_node) (parent:dom_element) =
     let ctx = { emit } in
     remove_all_dom parent;

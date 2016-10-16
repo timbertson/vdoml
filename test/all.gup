@@ -1,3 +1,4 @@
 #!bash -eu
 gup _build/main.js
+echo ' == running tests =='
 ./run --test-verbose

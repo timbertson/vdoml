@@ -1,8 +1,8 @@
 open Log_
 module Ui_main = struct
   type context = {
-    thread: unit Lwt.t;
-    main: unit Lwt.t;
+    thread: unit Lwt.t; (* thread is the "outer" thread waiting on all async tasks, which we wait on *)
+    main: unit Lwt.t; (* main is the "inner" thread listening for cancellation *)
     enqueue: unit Lwt.t -> unit;
   }
 
@@ -68,5 +68,3 @@ module Ui_main = struct
   let async ctx = ctx.enqueue
   let cancel ctx = Lwt.cancel ctx.main
 end
-
-

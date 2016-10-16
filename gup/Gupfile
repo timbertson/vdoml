@@ -6,4 +6,4 @@
 	**_build/*.js
 ./gup-clean:
 	examples/*/clean
-	clean
+	test/clean
