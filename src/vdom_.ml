@@ -13,7 +13,13 @@ module Vdom = struct
   module Identity = struct
     type t = identity
     let compare = Pervasives.compare
-    let eq : t -> t -> bool = (==)
+    let eq : t -> t -> bool = (=)
+    let to_string = function
+      | User_tag tag -> (match tag with
+        | `String s -> s
+        | `Int i -> string_of_int i
+      )
+      | Internal_tag i -> string_of_int i
   end
 
   module IdentityMap = Map.Make(Identity)

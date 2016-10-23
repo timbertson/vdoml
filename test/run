@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 var dom = require('jsdom').jsdom();
 var window = dom.defaultView;
+console.debug = console.log;
 global.document = window.document;
 require('./_build/main');

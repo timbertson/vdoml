@@ -1,4 +1,5 @@
-#!bash -eu
+#!/bin/bash
+set -eu
 FLAGS=()
 if test "${GUP_XTRACE:-0}" = 1; then
 	set -x

@@ -1,6 +1,5 @@
 open Test_util
 include Init
-open Vdoml
 open Html
 
 let string_of_dom elem =

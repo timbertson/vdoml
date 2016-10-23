@@ -1,1 +1,2 @@
-true: debug, package(vdoml, sexplib,ppx_test,ppx_assert,logs,logs.browser,lwt.ppx,js_of_ocaml,js_of_ocaml.ppx)
+true: debug, package(logs, sexplib,ppx_test,ppx_assert,logs,logs.browser,lwt.ppx,js_of_ocaml,js_of_ocaml.ppx)
+"src": include
