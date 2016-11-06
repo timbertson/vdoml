@@ -39,12 +39,14 @@ val hook :
 
 val component :
   view:(('state, 'message) instance -> ('state, 'message) view_fn) ->
+  ?eq:('state -> 'state -> bool) ->
   ?command:(('state, 'message) instance -> ('state, 'message) command_fn) ->
   unit -> ('state, 'message) component
 
 val root_component :
   update:('state -> 'message -> 'state) ->
   view:(('state, 'message) instance -> ('state, 'message) view_fn) ->
+  ?eq:('state -> 'state -> bool) ->
   ?command:(('state, 'message) instance -> ('state, 'message) command_fn) ->
   'state -> ('state, 'message) root_component
 

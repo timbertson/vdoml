@@ -52,6 +52,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   and ('state, 'message) component = {
     component_view: ('state, 'message) instance -> ('state, 'message) view_fn;
     component_command: (('state, 'message) instance -> ('state, 'message) command_fn) option;
+    component_state_eq: 'state -> 'state -> bool;
   }
 
   and ('state, 'message) root_component = {
@@ -65,6 +66,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     emit: 'message emit_fn ref;
     identity: Vdom.identity;
     view: ('state, 'message) view_fn Lazy.t;
+    state_eq: 'state -> 'state -> bool;
     (* This is a bit lame - because we can't encode state in the vdom,
      * we store it (along with the vdom) here. Re-rendering on unchanged
      * state is only skipped if each instance is used only once in the DOM.
@@ -73,8 +75,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   }
 
   module State = struct
-    let update view_fn current new_state =
-      if current.state_val = new_state
+    let update ~eq view_fn current new_state =
+      if eq current.state_val new_state
         then current
         else {
           state_val = new_state;
@@ -96,9 +98,14 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let component
     ~(view: ('state, 'message) instance -> ('state, 'message) view_fn)
+    ?(eq:('state -> 'state -> bool) option)
     ?(command:(('state, 'message) instance -> ('state, 'message) command_fn) option)
     ()
-    = { component_view = view; component_command = command }
+    = {
+      component_view = view;
+      component_command = command;
+      component_state_eq = eq |> Option.default (=);
+    }
 
   let root component ~update init = {
     component;
@@ -109,10 +116,15 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   let root_component
     ~(update:('state, 'message) update_fn)
     ~(view: ('state, 'message) instance -> ('state, 'message) view_fn)
+    ?(eq:('state -> 'state -> bool) option)
     ?(command:(('state, 'message) instance -> ('state, 'message) command_fn) option)
     init
     = {
-      component = { component_view = view; component_command = command };
+      component = {
+        component_view = view;
+        component_command = command;
+        component_state_eq = eq |> Option.default (=);
+      };
       root_init = init;
       root_update = update;
     }
@@ -185,6 +197,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         emit = ref emit;
         identity;
         state = ref None;
+        state_eq = component.component_state_eq;
         view;
       }
     ) in
@@ -199,7 +212,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       (* Note: this is effectful because we need to store `state` separate from VDOM :( *)
       let state = match !(instance.state) with
         | None -> State.init (render state) state
-        | Some existing -> State.update render existing state
+        | Some existing -> State.update ~eq:instance.state_eq render existing state
       in
       instance.state := Some (state);
       state.state_view
