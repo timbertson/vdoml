@@ -159,7 +159,7 @@ module Make(Hooks:DOM_HOOKS) = struct
     in
     loop ()
 
-  let set_property_if_changed = 
+  let set_property_if_changed =
     (* Ocaml doesn't expose easy access to the `===`
      * operator, so implement this in JS:
      *)
@@ -177,11 +177,18 @@ module Make(Hooks:DOM_HOOKS) = struct
 
     let open Attr in
     match key, value with
-      | AttrKey.Attribute_name key, Attribute value ->
-          element##(setAttribute (Js.string key) (Js.string value))
+      | AttrKey.Attribute_name key, Attribute (String_attr value) ->
+        element##(setAttribute (Js.string key) (Js.string value))
+
+      | AttrKey.Attribute_name key, Attribute (Dynamic_attr hook) ->
+        hook element key
+
       | AttrKey.Property_name key, Property value ->
-          set_property_if_changed element (Js.string key) (Vdom.js_of_property ctx.emit value)
-      | _ -> failwith "impossible!"
+        set_property_if_changed element (Js.string key) (Vdom.js_of_property ctx.emit value)
+
+      | AttrKey.Attribute_name _, Property _
+      | AttrKey.Property_name _, Attribute _
+        -> failwith "impossible!"
 
   let remove_attr (element:dom_element) (key:AttrKey.t) : unit =
     let open AttrKey in
@@ -434,12 +441,12 @@ module Make(Hooks:DOM_HOOKS) = struct
           match state.remaining_nodes with
             | [] -> raise (Assertion_error "unexpected end of existing elements")
             | _candidate::[] ->
-              assert (Anonymous candidate = _candidate);
+              assert (candidate == raw_of_node _candidate);
 
               (* this was the last element *)
               state |> apply (Remove candidate) |> apply (Append (Anonymous replacement))
             | _candidate::next_candidate::_ ->
-              assert (Anonymous candidate = _candidate);
+              assert (candidate == raw_of_node _candidate);
 
               (match next_candidate with
                 | Anonymous next_candidate when (compatible_anon next_candidate replacement) ->

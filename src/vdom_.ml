@@ -35,7 +35,7 @@ module Vdom = struct
 
     type 'msg attr =
       | Property of 'msg internal_property
-      | Attribute of string
+      | Attribute of Attr.attribute
 
     type hook = Dom_html.element Js.t -> unit
     type hooks = {
@@ -109,7 +109,7 @@ module Vdom = struct
 
     and 'msg attr =
       | Property of 'msg internal_property
-      | Attribute of string
+      | Attribute of Attr.attribute
 
     and text_node = string
 
@@ -143,7 +143,7 @@ module Vdom = struct
       Event_chain.eq a_ctx b_ctx && Attr.property_eq a b
 
     let attr_eq a b = match (a, b) with
-      | Attribute a, Attribute b -> a = b
+      | Attribute a, Attribute b -> Attr.attr_eq a b
       | Property a, Property b -> property_eq a b
       | Attribute _, Property _ | Property _, Attribute _ -> false
 

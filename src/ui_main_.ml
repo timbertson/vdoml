@@ -51,12 +51,14 @@ module Ui_main = struct
         (try
           Diff.prepend ~emit:ignore (
             let open Html in
-            div [
-              h1 [ text "Uncaught error:" ];
-              h2 [ text err ];
-              pre [ text backtrace ];
-              hr ();
-            ]
+            div (
+              [
+                h1 [ text "Uncaught error:" ];
+                h2 [ text err ];
+              ] @ (
+                if backtrace <> "" then [ pre [ text backtrace ] ] else []
+              ) @ [ hr () ]
+            )
           ) root;
           with _ -> ()
         );

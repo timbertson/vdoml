@@ -11,7 +11,7 @@ let attr name value =
   | "value" | "checked" | "selected" ->
     Attr.string_property name value
   | name ->
-    Attr.attribute name value
+    Attr.string_attribute name value
 
 let property = Attr.property
 
@@ -103,6 +103,8 @@ let string_of_input_type = function
   | `Url -> "url"
   | `Week -> "week"
 
+let a_dynamic name value : 'msg attr = Attr.attribute name (Attr.Dynamic_attr value)
+
 (* Core: *)
 let a_class = string_attrib "class"
 (* TODO: persist this as an actual list / set *)
@@ -110,7 +112,8 @@ let a_class_list = space_sep_attrib "class"
 
 let a_id = string_attrib "id"
 
-let a_user_data name = string_attrib ("data-" ^ name)
+let a_attr = string_attrib
+let a_data name = string_attrib ("data-" ^ name)
 
 let a_title = string_attrib "title"
 

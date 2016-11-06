@@ -14,12 +14,22 @@ module Attr = struct
     | Message_emitter of 'msg * Event.response
     | Event_handler of (Dom_html.event Js.t -> 'msg Event.result)
 
+  type attribute =
+    | String_attr of string
+    | Dynamic_attr of (Dom_html.element Js.t -> string -> unit)
+
   type 'msg value =
     | Property of 'msg property
-    | Attribute of string
+    | Attribute of attribute
 
   type 'msg t = key * 'msg value
   type 'msg optional = 'msg t option
+
+  let attr_eq a b = match (a,b) with
+    | String_attr a, String_attr b -> a = b
+    | String_attr _, _ -> false
+    | Dynamic_attr a, Dynamic_attr b -> a == b (* cannot compare functions structurally *)
+    | Dynamic_attr _, _ -> false
 
   let property_eq a b = match (a,b) with
     | String_prop a, String_prop b -> a = b
@@ -31,7 +41,7 @@ module Attr = struct
 
   let eq a b = match (a,b) with
     | Property a, Property b -> property_eq a b
-    | Attribute a, Attribute b -> a = b
+    | Attribute a, Attribute b -> attr_eq a b
     | Attribute _, Property _
     | Property _, Attribute _
       -> false
@@ -42,11 +52,18 @@ module Attr = struct
 
   let string_of_attr = function
     | AttrKey.Property_name _ as key, _ -> string_of_attr_name key
-    | AttrKey.Attribute_name key, Attribute value -> key ^ "=\"" ^ value ^ "\""
+    | AttrKey.Attribute_name key, Attribute value ->
+      key ^ "=" ^ (match value with
+        | String_attr value -> "\"" ^ value ^ "\""
+        | Dynamic_attr _ -> "(dynamic)"
+      )
     | _ -> failwith "impossible!"
 
   let attribute name value = Some (AttrKey.Attribute_name name, Attribute value)
-  let property  name value = Some (AttrKey.Property_name name, Property value)
+  let string_attribute name value = attribute name (String_attr value)
+  let dynamic_attribute name value = attribute name (Dynamic_attr value)
+
+  let property name value = Some (AttrKey.Property_name name, Property value)
   let string_property name value = property name (String_prop value)
 
   let message_emitter ?(response=`Handled) value = Message_emitter (value, response)

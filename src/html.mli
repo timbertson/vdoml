@@ -42,13 +42,15 @@ type 'a star =
 
 (** {2:attributes Attributes} *)
 
+val a_dynamic : string -> (Dom_html.element Js.t -> string -> unit) -> 'msg attr
 val a_class : string -> 'msg attr
 val a_class_list : string list -> 'msg attr
 (** This attribute assigns a class name or set of class names to an
     element. Any number of elements may be assigned the same class
     name or names.  *)
 
-val a_user_data : string -> string -> 'msg attr
+val a_attr : string -> string -> 'msg attr
+val a_data : string -> string -> 'msg attr
 (** May be used to specify custom attributes.
     The example given by the W3C is as follows :
     {v
