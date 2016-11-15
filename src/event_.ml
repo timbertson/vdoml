@@ -59,12 +59,20 @@ module Event = struct
     coerce_target Dom_html.CoerceTo.input ev
       |> Option.map (fun input -> Js.to_string (input##.value))
 
-  let apply emit { response; message } =
+  let apply emit (event:Dom_html.event Js.t) { response; message } =
+    let () = match response with
+      | `Handled ->
+        Dom.preventDefault event;
+        Dom_html.stopPropagation event
+      | `Stop ->
+        Dom_html.stopPropagation event
+      | `Unhandled -> ()
+    in
     let () = match message with
       | Some msg -> emit msg
       | None -> ()
     in
-    response
+    ()
 
   let map_msg fn {message; response} =
     match message with

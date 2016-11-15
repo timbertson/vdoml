@@ -78,7 +78,7 @@ module Attr = struct
       )
       | Event_handler handler -> Js.Unsafe.inject (fun e ->
         let result = handler e in
-        Event_.Event.apply emit (result:>'msg Event.result)
+        Event_.Event.apply emit e (result:>'msg Event.result)
     )
 
   let canonicalize_pair : 'msg t -> (string * 'msg value) = function

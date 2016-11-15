@@ -29,7 +29,7 @@ module Make(Hooks:DOM_HOOKS) = struct
 
   type 'msg state = 'msg ctx * 'msg node
 
-  type child_position = 
+  type child_position =
     | Append
     | Before of dom_any
 
