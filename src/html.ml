@@ -240,11 +240,11 @@ let a_mime_type = string_attrib "type"
 
 let a_alt = string_attrib "alt"
 
-let a_height p = int_attrib "height" p
+let a_height p = string_attrib "height" p
 
 let a_src = uri_attrib "src"
 
-let a_width p = int_attrib "width" p
+let a_width p = string_attrib "width" p
 
 let a_label_for = string_attrib "for"
 let a_for = a_label_for

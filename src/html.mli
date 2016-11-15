@@ -445,9 +445,9 @@ val a_rowspan : int -> 'msg attr
 
 val a_alt : string -> 'msg attr
 
-val a_height : int -> 'msg attr
+val a_height : string -> 'msg attr
 
-val a_width : int -> 'msg attr
+val a_width : string -> 'msg attr
 
 val a_shape : string -> 'msg attr
 
