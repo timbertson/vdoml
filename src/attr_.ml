@@ -91,7 +91,10 @@ module Attr = struct
   let list_to_attrs (attrs: 'msg optional list) : 'msg value AttrMap.t =
     List.fold_left (fun attrs pair ->
       match pair with
-      | Some (name, prop) -> AttrMap.add name prop attrs
+      | Some (name, prop) ->
+        if AttrMap.mem name attrs
+          then failwith ("Duplicate attribute: " ^ (string_of_attr_name name))
+          else AttrMap.add name prop attrs
       | None -> attrs
     ) AttrMap.empty attrs
 

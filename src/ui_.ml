@@ -300,7 +300,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       async_tasks = ref [];
     }
 
-    (* builders for the common case of *)
+    (* builders for the common case *)
     let of_sync t = {
       sync_tasks = ref [t];
       async_tasks = ref [];
