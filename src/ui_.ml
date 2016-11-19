@@ -333,15 +333,22 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
     async instance (
       let view_fn = update_and_view instance in
-      let state = ref root_init in
-      let dom_state = ref (Diff.init ~emit (view_fn !state) root) in
-      Lwt_stream.iter (fun message ->
-        let new_state = root_update !state message in
-        let new_view = view_fn new_state in
-        Log.info (fun m -> m "Updating view");
-        dom_state := Diff.update !dom_state new_view root;
-        state := new_state;
-      ) events
+      let open Lwt in
+
+      let rec apply_updates stream state dom_state =
+        Lwt_stream.peek stream >>= fun _event -> (
+          (* once we know there are updates, grab all available
+           * and process them at once before updating the view *)
+          let updates = Lwt_stream.get_available stream in
+          let state = List.fold_left root_update state updates in
+          let new_view = view_fn state in
+          let dom_state = Diff.update dom_state new_view root in
+          apply_updates stream state dom_state
+        )
+      in
+
+      let dom_state = (Diff.init ~emit (view_fn root_init) root) in
+      apply_updates events root_init dom_state
     );
     (instance, context)
 
