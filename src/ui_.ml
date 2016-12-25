@@ -221,23 +221,12 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let supplantable fn =
     let ref = ref None in
-    fun instance arg -> (
+    fun arg -> (
       !ref |> Option.may Lwt.cancel;
-      let th =
-        (* Can't have a self-recursive value, so use Lazy for indirection *)
-        let rec th = lazy (fn arg |> Lwt.map (Option.may (fun msg ->
-          let current = !ref in
-          let th = Lazy.force th in
-          if current |> Option.map ((==) th) |> Option.default false
-            then emit instance msg
-            else Log.info (fun m->m"Discarding message from cancelled thread")
-        ))) in
-        Lazy.force th in
-      ref := Some (th);
+      let th = fn arg in
+      ref := Some th;
       th
     )
-
-  let supplantable_some fn = supplantable (Lwt.map (fun x -> Some x) % fn)
 
   let bind instance handler = (fun evt ->
     match !(instance.state) with

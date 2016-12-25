@@ -99,13 +99,7 @@ val async : ('state, 'message) instance -> unit Lwt.t -> unit
 val abort : ('state, 'message) instance -> unit
 val wait : context -> unit Lwt.t
 
-val supplantable : ('a -> 'message option Lwt.t)
-  -> ('state, 'message) instance
-  -> ('a -> unit Lwt.t)
-
-val supplantable_some : ('a -> 'message Lwt.t)
-  -> ('state, 'message) instance
-  -> ('a -> unit Lwt.t)
+val supplantable : ('a -> unit Lwt.t) -> ('a -> unit Lwt.t)
 
 val onload : (unit -> unit Lwt.t) -> unit
 
