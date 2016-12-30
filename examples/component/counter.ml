@@ -15,4 +15,5 @@ let view instance state =
 		button ~a:[a_onclick (emitter Increment)] [ text "+" ];
 	]
 
-let build init = Ui.component ~update ~view init
+let initial = 0
+let component = Ui.component ~view ()

@@ -20,4 +20,5 @@ let view (instance: (model, message) Ui.instance) : model -> message Html.html =
 			div [ text "Hello, "; text state ];
 		]
 
-let build init = Ui.component ~update ~view init
+let initial = "(nobody)"
+let component = Ui.component ~view ()

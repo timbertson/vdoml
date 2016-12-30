@@ -1,5 +1,5 @@
 module Message = struct
-	type t = 
+	type t =
 		| Top of Counter.message
 		| Bottom of Counter.message
 		| Name of Name_field.message
@@ -21,14 +21,18 @@ module PairOfCounters = struct
 		| Name message -> { current with name = Name_field.update current.name message }
 
 	let view (instance: (model, Message.t) Ui.instance) =
-		let top_view = Counter.(Ui.child ~message:(fun msg -> Top msg) ~view instance) in
-		let bottom_view = Counter.(Ui.child ~message:(fun msg -> Bottom msg) ~view instance) in
-		let name_view = Name_field.(Ui.child ~message:(fun msg -> Name msg) ~view instance) in
+		let top_view = Ui.child ~message:(fun msg -> Top msg) Counter.component instance in
+		let bottom_view = Ui.child ~message:(fun msg -> Bottom msg) Counter.component instance in
+		let name_view = Ui.child ~message:(fun msg -> Name msg) Name_field.component instance in
 		fun { top; bottom; name } ->
 			let open Html in
 			div [ top_view top; bottom_view bottom; name_view name ]
 
-	let build () = Ui.component ~update ~view { top = 0; bottom = 0; name = "(nobody)"; }
+	let build () = Ui.root_component ~update ~view {
+		top = Counter.initial;
+		bottom = Counter.initial;
+		name = Name_field.initial;
+	}
 end
 
 let () = Ui.onload (Ui.main

@@ -1,6 +1,6 @@
 (* utils *)
 module StringMap = Map.Make(String)
-module List = struct
+module ListExt = struct
   include List
   let intersperse sep = function
     | [] as blank -> blank
@@ -124,13 +124,13 @@ module Controls = struct
       fun current ->
         button_fns
           |> List.map (fun view -> view current)
-          |> List.intersperse (text " ")
+          |> ListExt.intersperse (text " ")
     in
-  Curry.init (fun visibility ->
+  Memoize.init (fun visibility ->
     ul ~a:[ a_class "filters" ] (visibility_buttons visibility)
   )
 
-  let clear_completed instance = 
+  let clear_completed instance =
     function
       | 0 ->
         Log.info (fun m -> m "completed: 0");
@@ -308,16 +308,18 @@ module App = struct
       )
 
 
+    let entry_component = Ui.component ~view:view_entry ()
+
     (* view a list of entries *)
     let view_entries instance =
       (* make a collection version of the `view_entry` function,
        * which allows child views to be cached & tracked over
        * subsequent renders *)
-      let view_entries = Ui.collection ~view:view_entry
+      let view_entries = Ui.collection
         ~id:(fun state -> `Int state.Entry.id)
-        instance
+        entry_component instance
       in
-      let all_completed entries = List.all Entry.is_completed entries in
+      let all_completed entries = ListExt.all Entry.is_completed entries in
       let toggle_all = Ui.bind instance (fun state _evt ->
         Event.return `Unhandled (Check_all (not (all_completed state.entries)))
       ) in
@@ -381,7 +383,7 @@ module App = struct
   end
 
   (* build a new app component using update + view functions plus initial state *)
-  let build state = Ui.component ~update ~view:View.view (default state)
+  let build state = Ui.root_component ~update ~view:View.view (default state)
 end
 
 let () =

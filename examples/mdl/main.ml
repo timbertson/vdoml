@@ -58,12 +58,13 @@ module App = struct
 				]
 			]
 
+	let item = Ui.component ~view:view_item ()
+
 	let view instance =
 		let abort = handler (fun _ -> Ui.abort instance; Event.handled) in
 		let view_items = Ui.collection
-			~view:(view_item)
 			~id:(fun item -> `Int item.id)
-			instance
+			item instance
 		in
 		fun { items } ->
 			div [
@@ -80,7 +81,7 @@ module App = struct
 				] [ text "BOOM" ];
 			]
 
-	let build = Ui.component ~update ~view init
+	let build = Ui.root_component ~update ~view init
 end
 
 let () =
