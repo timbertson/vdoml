@@ -56,7 +56,7 @@ stdenv.mkDerivation {
 	'';
 	installPhase = ''
 		mkdir -p "$out"
-		cp -r --dereference lib/vdoml "$out/"
+		./install.sh
 	'';
 	shellHook = ''
 		export OCAMLPATH="$OCAMLPATH:$PWD/lib"
