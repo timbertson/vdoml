@@ -49,12 +49,16 @@ stdenv.mkDerivation {
 		};
 		inherit (opam2nix) opam2nix;
 	};
-	buildInputs = opam2nix.build opamConfig;
-	buildCommand = ''
-		gup all
+	inherit src;
+	buildInputs = (opam2nix.build opamConfig) ++ [python];
+	buildPhase = ''
+		tools/bin/gup lib
 	'';
-	installCommand = ''
-		mkdir "$out/vdoml
-		cp 
+	installPhase = ''
+		mkdir -p "$out"
+		cp -r --dereference lib/vdoml "$out/"
+	'';
+	shellHook = ''
+		export OCAMLPATH="$OCAMLPATH:$PWD/lib"
 	'';
 }
