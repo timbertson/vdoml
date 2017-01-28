@@ -2,8 +2,7 @@
 gup -u ../../VERSION
 VERSION="$(cat ../../VERSION)"
 [ -n "$VERSION" ]
-gup -u ../../nix/opam-dep-{names,packages}
-REQUIRES="$(cat ../../nix/opam-dep-names),$(cat ../../nix/opam-dep-packages)"
+REQUIRES="logs,logs.browser,lwt,js_of_ocaml"
 
 cat <<EOF >"$1"
 version = "$VERSION"
