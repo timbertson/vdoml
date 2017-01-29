@@ -7,7 +7,7 @@ fi
 tools/bin/gup -u nix/local.tgz
 
 set +x
-nix-build --show-trace shell.nix
+nix-build --show-trace .
 echo "== Built files:"
 ls -lR result/
 
