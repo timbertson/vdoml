@@ -1,8 +1,7 @@
-{ pkgs, src }:
+{ pkgs, src, opam2nix ? pkgs.callPackage ./opam2nix-packages.nix {} }:
 with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
-	opam2nix = callPackage ./opam2nix-packages.nix {};
 in
 opam2nix.buildOpamPackage {
 	name = "vdoml-${chompFile ../VERSION}";
