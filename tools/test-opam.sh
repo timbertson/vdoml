@@ -68,7 +68,7 @@ opam config exec --switch=vdoml-test -- bash -eux <<"EOF"
 		./tools/bin/gup nix/local.tgz
 		repo="$OPAMROOT/vdoml-repo"
 		rm -rf "$repo"
-		cp -a "$(nix-build --show-trace -A opamRepo nix/local.nix)" "$repo"
+		cp -a "$(nix-build --show-trace -A opam2nix.repo nix/local.nix)" "$repo"
 		chmod -R u+rwX "$repo"
 		opam repo add vdoml "$repo"
 	else
