@@ -6,6 +6,8 @@ depends: [
   "logs"
   "lwt"
   "js_of_ocaml"
+  "js_of_ocaml-ppx"
+  "js_of_ocaml-lwt"
   "ocamlfind" {build}
   "conf-python-2-7" {build}
   "ppx_test" {test}
