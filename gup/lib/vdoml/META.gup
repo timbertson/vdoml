@@ -2,7 +2,7 @@
 gup -u ../../VERSION
 VERSION="$(cat ../../VERSION)"
 [ -n "$VERSION" ]
-REQUIRES="logs,logs.browser,lwt,js_of_ocaml"
+REQUIRES="logs,logs.browser,lwt,js_of_ocaml,js_of_ocaml-lwt"
 
 cat <<EOF >"$1"
 version = "$VERSION"
