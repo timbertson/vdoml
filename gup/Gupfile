@@ -1,9 +1,0 @@
-./gup-ocamlbuild:
-	**_build/**.byte
-	**_build/**.cm*
-	**_build/doc/*.docdir
-./gup-js:
-	**_build/*.js
-./gup-clean:
-	examples/*/clean
-	test/clean

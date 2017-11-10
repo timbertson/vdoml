@@ -2,6 +2,7 @@ opam-version: "1.2"
 authors: [ "tim@gfxmonk.net" ]
 homepage: "https://github.com/timbertson/vdoml"
 maintainer: "tim@gfxmonk.net"
+description: "Virtual DOM"
 depends: [
   "logs"
   "lwt"
@@ -10,8 +11,11 @@ depends: [
   "js_of_ocaml-lwt"
   "ocamlfind" {build}
   "conf-python-2-7" {build}
-  "ppx_test" {test}
+  "jbuilder" {build}
+  "odoc" {build}
+  "ppx_inline_test" {test}
   "ppx_assert" {test}
+  "sexplib" {test}
 ]
 conflicts: [
   "base-no-ppx"

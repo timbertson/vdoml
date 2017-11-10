@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 var dom = require('jsdom').jsdom();
+// process.env['PPX_INLINE_TEST_LIB_AM_RUNNING_INLINE_TEST'] = 'true'
 var window = dom.defaultView;
 console.debug = console.log;
 global.document = window.document;
-require('./_build/main');
+process.argv.splice(2, 0, 'inline-test-runner', 'vdoml')
+console.log('+ ' + process.argv.join(' '))
+require('../_build/default/test/test.bc.js');
