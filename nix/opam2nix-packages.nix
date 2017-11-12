@@ -14,8 +14,8 @@ let
 	opam2nix = fetchgit 	{
 		"url" = "https://github.com/timbertson/opam2nix.git";
 		"fetchSubmodules" = false;
-		"sha256" = "0ab56pilkl2l6iaxv3011kn9dkpjgg0j5097h30j543cgyyqaghb";
-		"rev" = "bf3ec3e289bd0d90f01718fe72967723a04866ab";
+		"sha256" = "0p95hfwrz2np3y4l80jhmpm8l3yr823srwc5c6v7g6918br626s8";
+		"rev" = "c44a3e00c2af96a08c1a829bfbd543dbc47c3a90";
 	};
 in
 if devRepo != "" then
