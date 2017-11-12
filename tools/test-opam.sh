@@ -62,7 +62,7 @@ opam switch list | grep -q vdoml-test || opam switch install vdoml-test --alias-
 
 opam config exec --switch=vdoml-test -- bash -eux <<"EOF"
 	export OPAMYES=1
-	if [ "$CI" = true -o "${FULL_REPO:-}" = true ]; then
+	if [ "${FULL_REPO:-}" = true ]; then
 		# build a full repo
 		opam repo remove vdoml || true
 		./tools/bin/gup nix/local.tgz
