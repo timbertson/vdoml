@@ -21,5 +21,4 @@ conflicts: [
 ]
 build: [ "jbuilder" "build" "vdoml.install" ]
 build-test: [ "tools/bin/gup" "test/all" ]
-install: [ "jbuilder" "install" "vdoml" ]
 remove: [ "ocamlfind" "remove" "vdoml" ]
