@@ -55,7 +55,7 @@ else
 fi
 
 unset OCAMLPATH OCAMLFIND_DESTDIR
-BASE_SWITCH="system" # quicker
+BASE_SWITCH="4.03.0"
 
 export OPAMYES=1
 opam switch list | grep -q vdoml-test || opam switch install vdoml-test --alias-of "$BASE_SWITCH"
