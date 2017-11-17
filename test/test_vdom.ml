@@ -1,4 +1,5 @@
 open Test_util
+open Vdoml
 include Init
 open Html
 
@@ -35,10 +36,10 @@ let simple_html =
 
 let simple_html_str = "<div class=\"active\">child text</div>"
 
-let%TEST_UNIT "simple HTML building" =
+let%test_unit "simple HTML building" =
 	[%test_eq:string] (string_of_vdom simple_html) simple_html_str
 
-let%TEST_UNIT "update identical HTML" =
+let%test_unit "update identical HTML" =
 	run_vdom simple_html (fun runner ->
 		[%test_eq:string] (runner.dom_string ()) simple_html_str;
 		runner.update simple_html;
@@ -46,7 +47,7 @@ let%TEST_UNIT "update identical HTML" =
 		()
 	)
 
-let%TEST_UNIT "node type change" =
+let%test_unit "node type change" =
 	run_vdom (div []) (fun runner ->
 		[%test_eq:string] (runner.dom_string ()) "<div></div>";
 		runner.update (span []);
@@ -54,7 +55,7 @@ let%TEST_UNIT "node type change" =
 		()
 	)
 
-let%TEST_UNIT "property change" =
+let%test_unit "property change" =
 	let checkbox checked =
 		input ~a:[a_input_type `Checkbox; a_checked checked] ()
 	in

@@ -1,5 +1,6 @@
 open Test_util
 include Init
+open Vdoml
 open Vdom_
 open Html
 open Sexplib
@@ -58,6 +59,7 @@ module Diff_util = struct
 	type node = unit Vdom.node
 	type node_mutation = unit Diff.node_mutation
 	type node_mutations = node_mutation list
+
 	let raw = raw_of_node
 	let node : unit Vdom.Internal.pure_node -> unit Vdom.Internal.node = Vdom.Internal.root
 	type mutation_mode = [ `id | `anon ]
@@ -75,6 +77,7 @@ module Diff_util = struct
 		match node with
 			| Anonymous node -> List [ Atom "Anonymous"; sexp_of_raw_node node ]
 			| Identified (id, node) -> List [ Atom "Identified"; sexp_of_identity id; sexp_of_raw_node node ]
+
 	let compare_node = Pervasives.compare
 
 	let sexp_of_node_mutation =
@@ -188,7 +191,7 @@ let second_id1 = node @@ Ui.identify (`Int 1) @@ div ~a:[a_class "second id1"] [
 let second_id2 = node @@ Ui.identify (`Int 2) @@ div ~a:[a_class "second id2"] []
 let second_id3 = node @@ Ui.identify (`Int 3) @@ div ~a:[a_class "second id3"] []
 
-let%TEST_UNIT "removed element" =
+let%test_unit "removed element" =
 	assert_mutations
 		~existing:[ first_div; first_span ]
 		~replacements: [ second_span ]
@@ -197,7 +200,7 @@ let%TEST_UNIT "removed element" =
 			Update (raw first_span, raw second_span);
 		]
 
-let%TEST_UNIT "inserted element" =
+let%test_unit "inserted element" =
 	assert_mutations
 		~existing:[ first_div ]
 		~replacements:[ second_span; second_div ]
@@ -206,7 +209,7 @@ let%TEST_UNIT "inserted element" =
 			Update (raw first_div, raw second_div);
 		]
 
-let%TEST_UNIT "multiple inserted elements" =
+let%test_unit "multiple inserted elements" =
 	assert_mutations
 		~existing:[ first_div ]
 		~replacements:[ second_span; second_p1; second_p2; second_div ]
@@ -217,7 +220,7 @@ let%TEST_UNIT "multiple inserted elements" =
 			Update (raw first_div, raw second_div);
 		]
 
-let%TEST_UNIT "reordered element" =
+let%test_unit "reordered element" =
 	assert_mutations
 		~existing:[ first_div; first_span ]
 		~replacements:[ second_span; second_div ]
@@ -227,7 +230,7 @@ let%TEST_UNIT "reordered element" =
 			Append (second_div);
 		]
 
-let%TEST_UNIT "identified elements reordered amongst anons" =
+let%test_unit "identified elements reordered amongst anons" =
 	assert_mutations
 		~existing:[ first_div; first_id1; first_span; first_id2 ]
 		~replacements:[ second_span; second_id2; second_div; second_id1 ]
@@ -241,7 +244,7 @@ let%TEST_UNIT "identified elements reordered amongst anons" =
 			Append (second_id1);
 		]
 
-let%TEST_UNIT "anon elements amongst identified" =
+let%test_unit "anon elements amongst identified" =
 	assert_mutations
 		~existing:[ first_id1; first_id2; first_span; first_id3 ]
 		~replacements:[ second_id1; second_id2; second_id3; second_div ]
@@ -254,7 +257,7 @@ let%TEST_UNIT "anon elements amongst identified" =
 		]
 
 
-let%TEST_UNIT "random update" =
+let%test_unit "random update" =
 	let iterations = ref 50 in
 	while !iterations > 0; do
 		decr iterations;

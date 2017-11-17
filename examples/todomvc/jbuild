@@ -1,0 +1,16 @@
+; vim: set syntax=lisp commentstring=;\ %s:
+(jbuild_version 1)
+
+(executable (
+	(name main)
+	(libraries (
+		vdoml
+		logs
+		logs.browser
+		lwt.ppx
+		js_of_ocaml
+		js_of_ocaml.weak
+		js_of_ocaml-ppx
+	))
+	(preprocess (pps (lwt.ppx js_of_ocaml.ppx)))
+))

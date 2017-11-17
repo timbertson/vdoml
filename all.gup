@@ -1,6 +1,6 @@
 #!bash -eu
+jbuilder build @install
 gup -u \
-	lib \
 	examples/all \
 	doc \
 	;

@@ -1,3 +1,4 @@
+open Vdoml
 open Test_util
 include Init
 open Ui
@@ -31,7 +32,7 @@ let runner component fn =
 	)
 
 
-let%TEST_UNIT "update_and_view unchanged" =
+let%test_unit "update_and_view unchanged" =
 	runner (Text.component "hi") (fun widget ->
 		let initial = widget.view () in
 
@@ -42,7 +43,7 @@ let%TEST_UNIT "update_and_view unchanged" =
 		[%test_eq:bool] (initial == widget.view ()) true
 	)
 
-let%TEST_UNIT "update_and_view changed" =
+let%test_unit "update_and_view changed" =
 	runner (Text.component "hi") (fun widget ->
 		let initial = widget.view () in
 

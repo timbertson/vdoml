@@ -1,4 +1,4 @@
 #!bash -eu
-gup compile
-echo ' == running tests =='
-./run --test-verbose
+gup --always
+jbuilder build test.bc.js
+./run

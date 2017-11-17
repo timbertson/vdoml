@@ -10,13 +10,14 @@ depends: [
   "js_of_ocaml-lwt"
   "ocamlfind" {build}
   "conf-python-2-7" {build}
-  "ppx_test" {test}
+  "jbuilder" {build}
+  "odoc" {build}
+  "ppx_inline_test" {test}
   "ppx_assert" {test}
+  "sexplib" {test}
 ]
 conflicts: [
   "base-no-ppx"
 ]
-build: [ "tools/bin/gup" "lib" ]
+build: [ "jbuilder" "build" "vdoml.install" ]
 build-test: [ "tools/bin/gup" "test/all" ]
-install: [ "./install.sh" ]
-remove: [ "ocamlfind" "remove" "vdoml" ]

@@ -1,0 +1,40 @@
+; vim: set syntax=lisp commentstring=;\ %s:
+(jbuild_version 1)
+
+(executable (
+	(name test)
+	(libraries (
+		; vdoml
+		; logs
+		; logs.browser
+		; sexplib
+
+		; XXX ppx_inline_test breaks it!
+		; ppx_inline_test
+
+		ppx_inline_test.runtime-lib
+		; ppx_assert
+		; ppx_compare.runtime-lib
+		; lwt.ppx
+		; js_of_ocaml
+		js_of_ocaml.weak
+		; js_of_ocaml-ppx
+	))
+	(modules (test))
+	; (preprocess (pps (
+	; 	js_of_ocaml.ppx
+	; 	; ppx_assert
+	; 	; ppx_inline_test (-inline-test-lib vdoml)
+	; 	; ppx_compare
+	; 	ppx_driver.runner
+	; )))
+	(js_of_ocaml (
+		(flags (
+			--debug-info
+			--pretty
+			+base/runtime.js
+			; +ppx_inline_test/runtime.js
+			${SCOPE_ROOT}/../../test/stub.js
+		))
+	))
+))
