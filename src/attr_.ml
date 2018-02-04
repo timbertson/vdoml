@@ -22,6 +22,8 @@ module Attr = struct
     | Property of 'msg property
     | Attribute of attribute
 
+  type 'msg map = 'msg value AttrMap.t
+
   type 'msg t = key * 'msg value
   type 'msg optional = 'msg t option
 

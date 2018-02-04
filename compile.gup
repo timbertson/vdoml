@@ -1,0 +1,2 @@
+#!bash -eu
+jbuilder build @install

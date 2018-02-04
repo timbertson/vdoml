@@ -12,5 +12,6 @@
 		js_of_ocaml-ppx
 		js_of_ocaml-lwt
 	))
+	(flags (:standard -warn-error "+a-4-6-7-9-27-29-32..39-41..42-44-45-48-50"))
 	(preprocess (pps (lwt.ppx js_of_ocaml.ppx)))
 ))

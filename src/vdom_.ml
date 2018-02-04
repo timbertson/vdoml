@@ -24,190 +24,77 @@ module Vdom = struct
 
   module IdentityMap = Map.Make(Identity)
 
-  module Internal : sig
-    (* A strictly controlled module signature to ensure that
-     * all internal types are opaque, forcing all node
-     * traversal to happen via this module, which ensures
-     * the type-unsafe "transform" nodes are applied
-     *)
-    type 'msg pure_node
-    type 'msg internal_property
-
-    type 'msg attr =
-      | Property of 'msg internal_property
-      | Attribute of Attr.attribute
-
+  module Internal = struct
     type hook = Dom_html.element Js.t -> unit
     type hooks = {
       hook_create: hook option;
       hook_destroy: hook option;
     }
 
-    type 'msg element = {
-      e_name : string;
-      e_attrs: 'msg attr AttrMap.t;
-      e_children: 'msg node list;
-      e_hooks: hooks;
-    }
-
-    and 'msg raw_node = 
-      | Element of 'msg element
-      | Text of string
-
-    and 'msg node = 
-      | Anonymous of 'msg raw_node
-      | Identified of (identity * 'msg raw_node)
-
-    val transform : ('a, 'b) Event_chain.child -> 'a pure_node -> 'b pure_node
-    val root : 'msg pure_node -> 'msg node
-    val property_eq : 'msg internal_property -> 'msg internal_property -> bool
-    val attr_eq : 'msg attr -> 'msg attr -> bool
-    val js_of_property : ('msg -> unit) -> 'msg internal_property -> Js.Unsafe.any
-    val string_of_attr : (AttrKey.t * 'msg attr) -> string
-    val identify : identity -> 'msg pure_node -> 'msg pure_node
-    val identify_anonymous : identity -> 'msg pure_node -> 'msg pure_node
-    val hook : hooks -> 'msg pure_node -> 'msg pure_node
-    val event_node : 'msg Event_chain.node -> 'msg pure_node -> 'msg pure_node
-    val hooks : ?create:hook -> ?destroy:hook -> unit -> hooks
-    val text : string -> 'msg pure_node
-    val create : ?a:'msg Attr.optional list -> string -> 'msg pure_node list -> 'msg pure_node
-    val create_leaf : ?a:'msg Attr.optional list -> string -> 'msg pure_node
-  end = struct
-    (* pure_:
-     * Built up by creation functions.
-     * They form a 'msg pure_node, but *must* only be accessed via the
-     * functions in this module in order to be type-safe.
-     *
-     * (unprefixed):
-     * The only externally-visible type, only given out by
-     * `root` after it has traversed the tree and applied all
-     * transforms
-     *)
-    type 'msg traversal_context = 'msg Event_chain.path
-
-    type hook = Dom_html.element Js.t -> unit
-    type hooks = {
-      hook_create: hook option;
-      hook_destroy: hook option;
-    }
-
-    type 'msg element = 
+    and 'msg element =
       {
         e_name : string;
-        e_attrs: 'msg attr AttrMap.t;
+        e_attrs: 'msg Attr.map;
         e_children: 'msg node list;
         e_hooks: hooks;
       }
 
-    and 'msg pure_element =
-      {
-        e_pure_name : string;
-        e_pure_attrs: 'msg Attr.value AttrMap.t;
-        e_pure_children: 'msg pure_node list;
-        e_pure_hooks: hooks;
-      }
-
-    and 'msg attr =
-      | Property of 'msg internal_property
-      | Attribute of Attr.attribute
-
-    and text_node = string
-
-    and 'msg raw_node =
+    and 'msg content_node =
       | Element of 'msg element
       | Text of string
 
-    and 'msg pure_raw_node =
-      | Pure_element of 'msg pure_element
-      | Pure_text of string
-
-    and 'msg internal_property = 'msg traversal_context * 'msg Attr.property
-
-    and 'msg pure_node =
-      | Pure_anonymous of 'msg pure_raw_node
-      | Pure_identified of (identity * 'msg pure_raw_node)
-      (* internal type to track event mapping between embedded components of potentially-differing types *)
-      | Pure_event_node of ('msg Event_chain.node * 'msg pure_node)
-
+    (* A node is any chain of (Conversion, Observer, Identity) modifiers terminating
+     * in a Content. A Conversion node is existentially qualified. the mapping from
+     * child_msg -> msg is hidden and the overall type is just `msg node *)
     and 'msg node =
-      | Anonymous of 'msg raw_node
-      | Identified of (identity * 'msg raw_node)
+      | Conversion: (('child_msg -> 'msg) * 'child_msg node) -> 'msg node
+      | Observer: ('msg -> unit) * 'msg node -> 'msg node
+      | Identity: identity * 'msg node -> 'msg node
+      | Content: 'msg content_node -> 'msg node
 
-    let event_node : 'msg Event_chain.node -> 'msg pure_node -> 'msg pure_node = fun converter pure_node ->
-      Pure_event_node (converter, pure_node)
+    let node_of_element el = Content (Element el)
 
-    let transform : ('child_msg, 'msg) Event_chain.child -> 'child_msg pure_node -> 'msg pure_node = fun converter pure_node ->
-      Pure_event_node (Event_chain.unsafe_coerce converter, Obj.magic pure_node)
+    let rec element_of_content_node = function
+      | Element el -> Some el
+      | Text _ -> None
 
-    let property_eq (a_ctx, a) (b_ctx, b) =
-      Event_chain.eq a_ctx b_ctx && Attr.property_eq a b
+    let cast_mapped_node : type msg msg_a msg_b.
+      msg Event_chain.t ->
+      ((msg_a -> msg) * msg_a node) ->
+      ((msg_b -> msg) * msg_b node) ->
+      (msg_b Event_chain.t * msg_b node * msg_b node) option
+    = fun ctx (mapa, a) (mapb, b) ->
+        if Event_chain.mapper_eq mapa mapb then
+          (* proof: if mapa == mapb then the type paramater of `a` and `b` must also equal *)
+          Some (Event_chain.add_conversion mapb ctx, Obj.magic a, b)
+        else None
 
-    let attr_eq a b = match (a, b) with
-      | Attribute a, Attribute b -> Attr.attr_eq a b
-      | Property a, Property b -> property_eq a b
-      | Attribute _, Property _ | Property _, Attribute _ -> false
+    let rec identify_anonymous : type msg. identity -> msg node -> msg node = fun id node -> match node with
+      | Conversion (fn, node) -> Conversion (fn, identify_anonymous id node)
+      | Observer (fn, node) -> Observer (fn, identify_anonymous id node)
+      | Identity _ -> node
+      | Content _ -> Identity (id, node)
 
-    let rec convert_node ctx value =
-      match value with
-      | Pure_anonymous raw -> Anonymous (convert_raw ctx raw)
-      | Pure_identified (id, raw) -> Identified (id, convert_raw ctx raw)
-      | Pure_event_node (evt, node) ->
-        let ctx = Event_chain.enter evt ctx in
-        convert_node ctx node
-
-    and convert_raw ctx = function
-      | Pure_element e -> Element (convert_element ctx e)
-      | Pure_text t -> Text t
-
-    and convert_element ctx element =
-      let { e_pure_name; e_pure_attrs; e_pure_children; e_pure_hooks } = element in
-      {
-        e_name = e_pure_name;
-        e_hooks = e_pure_hooks;
-        e_attrs = e_pure_attrs |> AttrMap.map (function
-          | Attr.Attribute value -> Attribute value
-          | Attr.Property p -> Property (ctx, p)
-        );
-        e_children = e_pure_children |> List.map (convert_node ctx);
-      }
-
-    let root (node: 'msg pure_node) : 'msg node =
-      convert_node Event_chain.init node
-
-    let element_name (ctx, { e_pure_name; _}) = e_pure_name
-
-    let string_of_attr (name, attr) = match attr with
-      | Attribute value -> Attr.string_of_attr (name, Attr.Attribute value)
-      | Property _ -> Attr.string_of_attr_name name
-
-    let js_of_property (type msg) (emit:msg -> unit) ((ctx, prop):msg internal_property) =
-      let emit = Event_chain.emit ~toplevel:emit ctx in
-      Attr.js_of_property ~emit prop
-
-    let rec identify id = function
-      | Pure_anonymous node | Pure_identified (_, node) -> Pure_identified (id, node)
-      | Pure_event_node (evt, node) -> Pure_event_node (evt, identify id node)
-
-    let rec identify_anonymous id = function
-      | Pure_anonymous node -> Pure_identified (id, node)
-      | Pure_identified _ as node -> node
-      | Pure_event_node (evt, node) -> Pure_event_node (evt, identify_anonymous id node)
+    let rec identify id node = Identity (id, node)
 
     let hooks ?create ?destroy () = {
       hook_create = create;
       hook_destroy = destroy;
     }
 
-    let rec hook_node hooks = function
-      | Pure_text _ -> failwith "Only element nodes can be hooked"
-      | Pure_element e -> Pure_element { e with e_pure_hooks = hooks }
+    let rec hook : type msg. hooks -> msg node -> msg node = fun hooks -> function
+      | Conversion (fn, node) -> Conversion (fn, hook hooks node)
+      | Observer (fn, node) -> Observer (fn, hook hooks node)
+      | Identity (id, node) -> Identity (id, hook hooks node)
+      | Content c -> Content (match c with
+        | Text _ -> failwith "Only element nodes can be hooked"
+        | Element e -> Element { e with e_hooks = hooks }
+      )
 
-    let rec hook hooks = function
-      | Pure_anonymous node -> Pure_anonymous (hook_node hooks node)
-      | Pure_identified (id, node) -> Pure_identified (id, hook_node hooks node)
-      | Pure_event_node (evt, node) -> Pure_event_node (evt, hook hooks node)
+    let text (s : string) = Content (Text s)
 
-    let text (s : string) = Pure_anonymous (Pure_text s)
+    let observe : ('msg -> unit) -> 'msg node -> 'msg node = fun observe node ->
+      Observer (observe, node)
 
     let no_hooks = {
       hook_create = None;
@@ -215,17 +102,17 @@ module Vdom = struct
     }
 
     let create ?(a=[]) tag children =
-      Pure_anonymous (Pure_element {
-        e_pure_name = tag;
-        e_pure_hooks = no_hooks;
-        e_pure_attrs = Attr.list_to_attrs a;
-        e_pure_children = children
+      Content (Element {
+        e_name = tag;
+        e_hooks = no_hooks;
+        e_attrs = Attr.list_to_attrs a;
+        e_children = children
       })
 
     let create_leaf ?a tag =
       create tag ?a []
   end
 
-  type 'msg html = 'msg Internal.pure_node
+  type 'msg html = 'msg Internal.node
   include Internal
 end
