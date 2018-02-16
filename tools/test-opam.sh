@@ -55,14 +55,14 @@ else
 fi
 
 unset OCAMLPATH OCAMLFIND_DESTDIR
-BASE_SWITCH="system" # quicker
+BASE_SWITCH="4.03.0"
 
 export OPAMYES=1
 opam switch list | grep -q vdoml-test || opam switch install vdoml-test --alias-of "$BASE_SWITCH"
 
 opam config exec --switch=vdoml-test -- bash -eux <<"EOF"
 	export OPAMYES=1
-	if [ "$CI" = true -o "${FULL_REPO:-}" = true ]; then
+	if [ "${FULL_REPO:-}" = true ]; then
 		# build a full repo
 		opam repo remove vdoml || true
 		./tools/bin/gup nix/local.tgz

@@ -1,1 +1,0 @@
-true: debug, package(vdoml,logs,logs.browser,lwt.ppx,js_of_ocaml,js_of_ocaml.ppx)

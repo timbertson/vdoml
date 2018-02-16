@@ -6,3 +6,5 @@
 node_modules/
 /lib/vdoml/META
 /nix/local.tgz
+/vdoml.install
+.merlin

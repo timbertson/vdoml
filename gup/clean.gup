@@ -1,6 +1,2 @@
 #!bash -eu
-./gup/gup-clean "$@"
-gup -u test/clean
-ls -1 examples | while read f; do
-	gup -u examples/"$f"/clean
-done
+jbuilder clean

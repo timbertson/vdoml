@@ -1,3 +1,0 @@
-true: debug, package(logs,logs.browser,lwt.ppx,js_of_ocaml,js_of_ocaml-ppx,js_of_ocaml-lwt)
-<*.cmx>: for-pack(Vdoml)
-"vdoml.cmx": -for-pack(Vdoml)

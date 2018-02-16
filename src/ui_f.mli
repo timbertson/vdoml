@@ -1,9 +1,6 @@
-module type UI = module type of Ui
+module type UI = Ui_.UI
 
-module type DOM_HOOKS = sig
-  val on_create : Dom_html.element Js.t -> unit
-  val on_destroy : Dom_html.element Js.t -> unit
-end
+module type DOM_HOOKS = Diff_.DOM_HOOKS
 
 module No_hooks : DOM_HOOKS
 
