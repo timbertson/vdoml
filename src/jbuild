@@ -7,7 +7,6 @@
 	(libraries (
 		logs
 		logs.browser
-		lwt.ppx
 		js_of_ocaml
 		js_of_ocaml-ppx
 		js_of_ocaml-lwt
