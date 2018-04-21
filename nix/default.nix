@@ -1,8 +1,9 @@
-{ pkgs, src, opam2nix ? pkgs.callPackage ./opam2nix-packages.nix {}, ocamlAttr ? "ocaml-ng.ocamlPackages_4_05.ocaml" }:
+{ pkgs ? import <nixpkgs> {}, opam2nix ? pkgs.callPackage ./opam2nix-packages.nix {}, ocamlAttr ? "ocaml-ng.ocamlPackages_4_05.ocaml" }:
 with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
 	opam-installer = callPackage ./opam-installer.nix { inherit opam2nix; };
+	src = if lib.isStorePath ../. then ../. else ./local.tgz;
 in
 opam2nix.buildOpamPackage {
 	name = "vdoml-${chompFile ../VERSION}";
