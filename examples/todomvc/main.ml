@@ -14,6 +14,14 @@ module ListExt = struct
     | [] -> true
     | item::remaining ->
       if fn item then all fn remaining else false
+
+  let rec filter_map fn = function
+    | [] -> []
+    | item::remaining -> (
+      match fn item with
+        | Some item -> item :: filter_map fn remaining
+        | None -> filter_map fn remaining
+    )
 end
 let log_src = Logs.Src.create "todo"
 module Log = (val Logs.src_log log_src)
@@ -262,7 +270,6 @@ module App = struct
       let open Msg in
       let open Entry in
       let open Ui in
-      let toggle_class name value = if value then a_class name else None in
       let cancel_editing = Ui.bind instance (fun entry _event ->
         Event.handle (Modify (entry.id, Editing false))
       ) in
@@ -275,11 +282,13 @@ module App = struct
       let toggle_check entry = Modify (entry.id, Toggle_check) in
       let delete entry = Delete entry.id in
       let start_editing entry = Modify (entry.id, Editing true) in
+      let toggle_class name value = if value then Some name else None in
       (fun entry ->
-        li ~a:[
+        let classes = [
           toggle_class "completed" entry.completed;
           toggle_class "editing" entry.editing;
-        ] [
+        ] |> ListExt.filter_map identity in
+        li ~a:[a_class (String.concat " " classes)] [
           div ~a:[ a_class "view" ] [
             input ~a:[
               a_checked entry.completed;
@@ -387,6 +396,5 @@ module App = struct
 end
 
 let () =
-  Logs.(Src.set_level log_src (Some Warning));
   let ui = App.build None in
   Ui.onload (Ui.main ~log:Logs.Warning ~root:"todomvc" ui)

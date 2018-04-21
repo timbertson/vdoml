@@ -1,5 +1,5 @@
 #!bash -eu
-jbuilder build @install
+gup -u compile
 gup -u \
 	examples/all \
 	doc \

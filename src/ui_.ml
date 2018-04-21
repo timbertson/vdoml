@@ -143,6 +143,26 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   type identity = Vdom.user_tag
   type context = Ui_main.context
 
+  let _set_log_level lvl =
+    Logs.Src.set_level log_src (Some lvl);
+    Log.app (fun m -> m "Set log level to %s" (Logs.level_to_string (Some lvl)))
+
+  let user_override_level = (
+    (* setup default log level *)
+    let url = Js.to_string Dom_html.window##.location##.href in
+    (* Log.app (fun m -> m"Checking URL: %s" url); *)
+    let open Logs in
+    Regexp.search (Regexp.regexp "vdomlLogLevel=(debug|info|warn|error)") url 0
+      |> Option.bind (function (_idx, result) -> (match Regexp.matched_group result 1 with
+        | Some "debug" -> Some Debug
+        | Some "info" -> Some Info
+        | Some "warn" -> Some Warning
+        | Some "error" -> Some Error
+        | other -> None
+      )
+    )
+  )
+
   let init_logging () =
     (* setup console *)
     if Logs.reporter () == Logs.nop_reporter then (
@@ -156,12 +176,13 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         )
       )} in
       Logs.set_reporter reporter
-    )
+    );
+    (* setup default log level *)
+    user_override_level |> Option.may (_set_log_level)
 
   let set_log_level lvl =
     init_logging ();
-    Logs.Src.set_level log_src (Some lvl);
-    Log.info (fun m -> m "Set log level to %s" (Logs.level_to_string (Some lvl)))
+    _set_log_level lvl
 
   let identify id = let open Vdom in identify (User_tag id)
 
@@ -264,6 +285,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let async instance th = Ui_main.async (instance.context) th
 
+  let emit instance = !(instance.emit)
+
   let identity_fn x = x
 
   let make_instance (type message) (type state)
@@ -276,6 +299,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       let emit, add_observer = match component.component_command with
         | None -> (emit, lazy identity_fn)
         | Some command ->
+          (* instance.emit observes directly, `add_observer` is used to wrap the vdom view
+           * in an observer virtual node. This ensures that both code paths
+           * (instance.emit and emitting via a DOM property) will hit the observer *)
           let observe = lazy (
             let instance = Lazy.force instance in
             let command = command instance in
@@ -313,7 +339,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
                 |> Ui_main.async context
           ) in
           let add_observer = lazy (
-            Vdom.event_node (Event_chain.observer (Lazy.force observe))
+            Vdom.observe (Lazy.force observe)
           ) in
           (emit, add_observer)
       in
@@ -350,8 +376,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       instance.state := Some (state);
       state.state_view
 
-  let emit instance = !(instance.emit)
-
   let supplantable fn =
     let ref = ref None in
     fun arg -> (
@@ -367,6 +391,47 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     | None -> Event.unhandled
   )
 
+  let embed_child_view (type child_message) (type message) (type state)
+    (map: child_message -> message)
+    (view: (state, child_message) view_fn)
+    : (state, message) view_fn
+  = (
+    fun state -> Vdom.Conversion (map, view state)
+  )
+
+  let child_instance (type child_message) (type message) (type child_state) (type state)
+    ~(message:child_message -> message)
+    ?(id:identity option)
+    (component:(child_state, child_message) component)
+    (instance:(state, message) instance)
+    : (child_state, message) instance
+  =
+    let child : (child_state, child_message) instance = (make_instance
+      ~context:(instance.context)
+      ~emit:((emit instance) % message)
+      ~identity:(gen_identity id)
+      component
+    ) in
+    {
+      context = child.context;
+      emit = ref (emit instance);
+      identity = child.identity;
+      state_eq = child.state_eq;
+      state = ref None;
+      view = Lazy.from_val (embed_child_view message (Lazy.force child.view));
+    }
+
+  let child (type child_message) (type message) (type child_state) (type state)
+    ~(message:child_message -> message)
+    ?(id:identity option)
+    (component:(child_state, child_message) component)
+    (instance:(state, message) instance)
+    : child_state -> message Html.html
+  =
+    let child = child_instance ~message ?id component instance in
+    fun state -> update_and_view child state
+
+
   (* default implementation: just use a list *)
   module ChildCache = Collection_cache.Make(Collection_cache.Child_list)
 
@@ -378,32 +443,21 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
   =
     let open Vdom in
     let cache = ChildCache.init () in
-    let emit, event_node = Event_chain.child message (emit instance) in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
         state |> List.map (fun state ->
-          let id = User_tag (id state) in
-          let child = get_or_create id (fun _ -> update_and_view (make_instance
-            ~context:instance.context ~emit ~identity:id component
-          )) in
-          child state
+          let id = id state in
+          let child_view = get_or_create id (fun _ ->
+            let child: (child_state,message) instance = (child_instance
+              ~message ~id component instance
+            ) in
+            update_and_view child
+          ) in
+          child_view state
         )
-      ) |> List.map (Vdom.transform event_node)
+      )
 
   let collection ~id component instance = children ~id ~message:identity component instance
-
-  let child (type child_message) (type message) (type child_state) (type state)
-    ~(message:child_message -> message)
-    ?(id:identity option)
-    (component:(child_state, child_message) component)
-    (instance:(state, message) instance)
-    : child_state -> message Html.html
-  =
-    let emit, event_node = Event_chain.child message (emit instance) in
-    let child : (child_state, child_message) instance = (make_instance
-      ~context:(instance.context) ~emit ~identity:(gen_identity id) component
-    ) in
-    fun state -> update_and_view child state |> Vdom.transform event_node
 
   module Tasks = struct
     type ('state, 'message) t = {
@@ -481,10 +535,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     ignore_result (Lwt_js_events.onload () >>= (fun _evt -> fn ()))
 
   let main ?log ?root ?get_root ?tasks component () =
-    let () = match log with
-      | Some lvl -> set_log_level lvl
-      | None -> init_logging ()
-    in
+    init_logging ();
+    (match (log, user_override_level) with
+      | Some lvl, None -> set_log_level lvl
+      | _ -> ()
+    );
     let get_root = match get_root with
       | Some get_root -> get_root
       | None -> (
