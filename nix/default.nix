@@ -3,7 +3,9 @@ with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
 	opam-installer = callPackage ./opam-installer.nix { inherit opam2nix; };
-	src = if lib.isStorePath ../. then ../. else ./local.tgz;
+	src = if lib.isStorePath ../.
+		then ../.
+		else (nix-update-source.fetch ./src.json).src;
 in
 opam2nix.buildOpamPackage {
 	name = "vdoml-${chompFile ../VERSION}";

@@ -3,16 +3,9 @@ set -eux
 set -o pipefail
 export CI="${CI:-false}"
 
-if [ "$CI" = true ]; then
-	. "$(dirname "$0")/install-nix.sh"
-	echo "yes" | sudo add-apt-repository ppa:avsm/ocaml42+opam12
-	sudo apt-get update -qq
-	sudo apt-get install -qq ocaml opam
-else
-	if [ -z "${IN_NIX_SHELL:-}" ] && which nix-shell >/dev/null 2>&1; then
-		echo "Running inside nix-shell..."
-		exec env IN_NIX_SHELL=1 nix-shell -p opam --run "$0" "$@"
-	fi
+if [ -z "${IN_NIX_SHELL:-}" ] && which nix-shell >/dev/null 2>&1; then
+	echo "Running inside nix-shell..."
+	exec env IN_NIX_SHELL=1 nix-shell -p opam --run "$0" "$@"
 fi
 
 if ! which opam >/dev/null 2>&1; then
@@ -43,6 +36,7 @@ function cleanup() {
 }
 trap "cleanup" EXIT
 
+BASE_SWITCH="4.05.0"
 if [ -n "${SCRATCH_OPAM:-}" ]; then
 	# OPAMYES=1 opam switch system
 	# OPAMYES=1 opam switch remove vdoml-test || true
@@ -51,30 +45,17 @@ if [ -n "${SCRATCH_OPAM:-}" ]; then
 else
 	tempdir="$(mktemp -d)"
 	export OPAMROOT="$tempdir"
-	opam init --no-setup
+	opam init --no-setup --comp="$BASE_SWITCH"
 fi
 
 unset OCAMLPATH OCAMLFIND_DESTDIR
-BASE_SWITCH="4.03.0"
 
 export OPAMYES=1
 opam switch list | grep -q vdoml-test || opam switch install vdoml-test --alias-of "$BASE_SWITCH"
 
 opam config exec --switch=vdoml-test -- bash -eux <<"EOF"
 	export OPAMYES=1
-	if [ "${FULL_REPO:-}" = true ]; then
-		# build a full repo
-		opam repo remove vdoml || true
-		./tools/bin/gup nix/local.tgz
-		repo="$OPAMROOT/vdoml-repo"
-		rm -rf "$repo"
-		cp -a "$(nix-build --show-trace -A opam2nix.repo nix/local.nix)" "$repo"
-		chmod -R u+rwX "$repo"
-		opam repo add vdoml "$repo"
-	else
-		# just pin it for local testing
-		opam pin add --kind git --no-action "$(pwd)"
-	fi
+	opam pin add --kind git --no-action "$(pwd)"
 	opam install vdoml
 	opam list
 	tools/bin/gup examples/all

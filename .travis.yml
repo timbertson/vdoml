@@ -1,8 +1,8 @@
-language: C
+language: nix
 env:
   matrix:
     - TEST=nix
-    - TEST=opam
+    # - TEST=opam
 sudo: required
 script:
  - "tools/test-$TEST.sh"

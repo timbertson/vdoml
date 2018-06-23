@@ -1,13 +1,11 @@
 #!/bin/bash
 set -eux
-if ! which nix-build >/dev/null; then
-	. "$(dirname "$0")/install-nix.sh"
-fi
 
-tools/bin/gup -u nix/local.tgz
-
+NIX_PIN="$(nix-build --no-out-link '<nixpkgs>' -A 'nix-pin')/bin/nix-pin"
 set +x
-nix-build --show-trace .
+"$NIX_PIN" create vdoml . --path nix/default.nix
+bash <(curl -sSL 'https://gist.githubusercontent.com/timbertson/b619802d795c270f80886cee8efd4191/raw/travis-long-output.sh') \
+	"$NIX_PIN" build --show-trace .
 echo "== Built files:"
 ls -lR result/
 

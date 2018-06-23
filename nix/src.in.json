@@ -1,0 +1,8 @@
+{
+	"type": "fetchFromGitHub",
+	"repo": "vdoml",
+	"owner": "timbertson",
+	"localRepo": "..",
+	"rev": "refs/heads/master"
+}
+
