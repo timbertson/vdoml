@@ -17,15 +17,15 @@ module Option = struct
     | Some x -> x
     | None -> d
 
+  let default_fn d = function
+    | Some x -> x
+    | None -> d ()
+
   let may fn = function
     | Some x -> fn x
     | None -> ()
 
   let some x = Some x
-
-  let get d = function
-    | Some x -> x
-    | None -> d
 
   let filter pred = function
     | Some x as rv when pred x -> rv

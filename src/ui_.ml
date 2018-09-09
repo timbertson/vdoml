@@ -5,8 +5,104 @@ open Ui_main_
 open Util_
 open Event_chain_
 
+(* View module hides internals of `view` function, ensuring
+ * all view invocations are cached *)
+module View : sig
+  type ('state, 'message) t
+  val init :
+    skip: ('state -> 'state -> bool) ->
+    ('state -> 'message Html.html) ->
+    ('state, 'message) t
+
+  val never : 'state -> 'state -> bool
+  val mutate_view : ('state, 'message) t -> ('state -> 'message Html.html) -> unit
+  val update : ('state, 'message) t -> 'state -> 'message Html.html
+  val last_state : ('state, 'message) t -> 'state option
+end = struct
+  (* This is a bit lame - because we can't encode state in the vdom,
+   * we store it (along with the vdom) here. Re-rendering on unchanged
+   * state is only skipped if each instance is used only once in the DOM.
+   * This is recommended, but can't be enforced. *)
+  type ('state, 'message) state = {
+    (* counter: int; *)
+    mutable input: 'state;
+    mutable output: 'message Html.html;
+  }
+
+  type ('state, 'message) t = {
+    mutable view : 'state -> 'message Html.html;
+    mutable current: ('state, 'message) state option;
+    skip: 'state -> 'state -> bool;
+  }
+
+  let never a b = false
+
+  let init ~skip view = { view; skip; current = None; }
+
+  let last_state s = s.current |> Option.map (fun s -> s.input)
+
+  let mutate_view s view = s.view <- view
+
+  let update t state =
+    (* Note: this is effectful because we need to store `state` separate from VDOM. *)
+    let result = match t.current with
+      | None ->
+        let current = {
+          (* counter = 0; *)
+          input = state;
+          output = Html.empty;
+        } in
+
+        (* Note: we guarantee that `t.current.state` is not None before first call to view *)
+        t.current <- Some current;
+        current.output <- t.view state;
+        current
+
+      | Some current -> (
+        if t.skip current.input state
+          then current
+          else (
+            current.input <- state;
+            current.output <- t.view state;
+            current
+          )
+      )
+    in
+    result.output
+end
+
+
 module type UI = sig
   (** Top-level user-interface functionality *)
+
+  (** {2 Note: currying and lazy evaluation}
+
+  Vdoml UI instances are impure, stateful objects. They store the most recent state in order to
+  skip rendering unnecessarily, as well as to facilitate useful features (like `bind`
+  and `command`).
+
+  For this reason, you should generally construct instances when _defining_ your view
+  function, rather than on each render. You can do this by taking advantage of Ocaml's
+  explicit currying:
+
+    Instead of defining a component's view function as:
+
+    let view instance state =
+      let button = Ui.child instance ( ... ) in
+      ( ... )
+
+
+    .. you should use:
+
+    let view instance =
+      let button = Ui.child instance ( ... ) in
+      fun state ->
+        ( ... )
+
+    The first `view` function will construct a new `button` each time a new state is passed in.
+    The second will construct a single `button` instance which will be re-rendered each time
+    a new state is passed in.
+  *)
 
   (** {2 UI Components}
 
@@ -191,12 +287,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   type 'msg node = 'msg Html.html
 
-  type ('state, 'msg) instance_state = {
-    state_val: 'state;
-    state_counter: int;
-    state_view: 'msg Html.html;
-  }
-
   type 'message emit_fn = 'message -> unit
 
   and ('state, 'message) view_fn = 'state -> 'message Html.html
@@ -219,27 +309,8 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     context: context;
     emit: 'message emit_fn ref;
     identity: Vdom.identity;
-    view: ('state, 'message) view_fn Lazy.t;
-    state_eq: 'state -> 'state -> bool;
-    (* This is a bit lame - because we can't encode state in the vdom,
-     * we store it (along with the vdom) here. Re-rendering on unchanged
-     * state is only skipped if each instance is used only once in the DOM.
-     * This is recommended, but can't be enforced. *)
-    state: ('state, 'message) instance_state option ref;
+    view: ('state, 'message) View.t;
   }
-
-  module State = struct
-    let update ~eq view_fn current new_state =
-      if eq current.state_val new_state
-        then current
-        else {
-          state_val = new_state;
-          state_counter = current.state_counter + 1;
-          state_view = view_fn new_state;
-        }
-
-    let init dom state = { state_val = state; state_counter = 0; state_view = dom }
-  end
 
   let gen_identity = let tag_counter = ref 0 in
     let open Vdom in
@@ -285,9 +356,15 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
 
   let async instance th = Ui_main.async (instance.context) th
 
-  let emit instance = !(instance.emit)
+  let emit instance msg = !(instance.emit) msg
+
+  let view instance = View.update (instance.view)
 
   let identity_fn x = x
+
+  type ('state, 'msg) command_notification =
+    | Notify_fn of ('msg -> unit)
+    | Queued_messages of 'msg list
 
   let make_instance (type message) (type state)
     ~context
@@ -295,86 +372,113 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     ~identity
     (component: (state, message) component) =
   (
+    (* Instance initialization is complex, and self-recursive. Issues include:
+     *
+     *  - Defining the `emit` function relies on bnding the component's `command` function
+     *    to `instance`, which is self-recursive and may have side effects like emitting
+     *    initial messages. The command function should be done exactly once for each instance.
+     *
+     *  - A component's command function cannot be notified of an emitted event
+     *    until after the first `view` has completed, otherwise the instance's
+     *    last known state is undefined.
+     *
+     *  - The view function _also_ needs to know the component's command function,
+     *    in order to wrap the rendered view in a Vdom observer.
+     *
+     * To deal with this, instance is a `lazy` value, accessible from within
+     * its own definition. Functions which rely on knowing the value of `instance`
+     * are set up to be manually lazy - the initial implementation depends on nothing.
+     * On first invocation, it evaluates all dependencies, constructs a new function
+     * closing over dependent values directly, and then overwrites instance.field
+     * with this new, faster function so that initialization is only performed once.
+     *)
+
     let rec instance = lazy (
-      let emit, add_observer = match component.component_command with
-        | None -> (emit, lazy identity_fn)
-        | Some command ->
-          (* instance.emit observes directly, `add_observer` is used to wrap the vdom view
-           * in an observer virtual node. This ensures that both code paths
-           * (instance.emit and emitting via a DOM property) will hit the observer *)
-          let observe = lazy (
+      Log.warn (fun m -> m "make_instance(%s)" (Vdom.Identity.to_string identity));
+
+      let render view_fn = Vdom.identify_anonymous identity % view_fn in
+
+      let skip = component.component_state_eq in
+
+      let (emit, view) = match component.component_command with
+        | None -> (
+          let view = View.init ~skip (fun state ->
             let instance = Lazy.force instance in
-            let command = command instance in
-            fun msg ->
-              let state = match !(instance.state) with
-                | Some state -> state.state_val
-                | None -> raise (Assertion_error "command invoked on an instance with no state")
-              in
-              command state msg |> Option.may (async instance)
+            let view_fn = render (component.component_view instance) in
+            (* self-modify and re-call *)
+            View.mutate_view instance.view view_fn;
+            view_fn state
           ) in
-          let emit msg =
-            let actually_emit msg =
-              (* emit and overwrite instance.emit so that
-               * further calls go straight through *)
-              let instance = Lazy.force instance in
-              let observe = Lazy.force observe in
-              (* Note: must emit before observe, otherwise state may be None *)
-              let emit = fun msg -> emit msg; observe msg in
-              instance.emit := emit;
-              emit msg
-            in
-            if Lazy.is_val observe then (
-              (* already forced; we can go right ahead *)
-              actually_emit msg
-            ) else (
-              (* emit is being called during definition
-               * of instance (most likely `command instance` is calling
-               * `emit`). That's OK, but queue this message so we can
-               * dispatch it once `observe` is actually defined
-               *)
-              Log.debug (fun m -> m "observe not yet initialized; enqueueing message");
-              let open Lwt in
-              Lwt_js.yield ()
-                >>= (fun () -> return (actually_emit msg))
-                |> Ui_main.async context
+          (emit, view)
+        )
+        | Some command -> (
+          (* instance.emit notifies `command directly, `Vdom.observe` is used to wrap the
+           * vdom view in an observer virtual node. This ensures that both code paths
+           * (instance.emit and emitting via a DOM property) will notify `command` *)
+
+          let initialized_command = ref (Queued_messages []) in
+
+          let emit = (fun msg ->
+            (* Once `initialized_command` is a real command, we
+             * can close over its contents in a new `emit` function
+             * because we know it'll never change. While we're queueing
+             * messages, we'll execute this check each time *)
+            match !initialized_command with
+              | Notify_fn call_command -> (
+                let emit: message -> unit = (fun msg ->
+                  emit msg;
+                  call_command msg
+                ) in
+                let instance = (Lazy.force instance) in
+                (* self-modify and call *)
+                instance.emit := emit;
+                emit msg
+              )
+              | Queued_messages msgs -> (
+                Log.debug (fun m -> m "instance not yet rendered; enqueueing command notification");
+                initialized_command := Queued_messages (msg :: msgs);
+                emit msg
+              )
           ) in
-          let add_observer = lazy (
-            Vdom.observe (Lazy.force observe)
+
+          let view = View.init ~skip (fun state ->
+            let instance = Lazy.force instance in
+            let component_view = component.component_view instance in
+
+            (* during rendering, we know instance.view.last_state
+             * must be defined (it's set pre-render),
+             * so we can safely initialize command notification *)
+            let call_command = (match !initialized_command with
+              | Notify_fn _ -> raise (Assertion_error "command already initialized at first view")
+              | Queued_messages msgs -> (
+                let bound_command = command instance in
+                let call_command = (fun msg ->
+                  let state = View.last_state instance.view |> Option.default_fn
+                    (fun () -> raise (Assertion_error "view.last_state not set at render time")) in
+                  bound_command state msg |> Option.may (async instance)
+                ) in
+                msgs |> List.rev |> List.iter call_command;
+                call_command
+              )
+            ) in
+            initialized_command := Notify_fn call_command;
+
+            let view_fn = render (fun state ->
+              Vdom.observe call_command (component_view state)
+            ) in
+
+            (* self-modify and call *)
+            View.mutate_view instance.view view_fn;
+            view_fn state
           ) in
-          (emit, add_observer)
+          (emit, view)
+        )
       in
 
-      let view = lazy (
-        let instance = Lazy.force instance in
-        let view = component.component_view instance in
-        let add_observer = Lazy.force add_observer in
-        add_observer % view
-      ) in
-
-      {
-        context;
-        emit = ref emit;
-        identity;
-        state = ref None;
-        state_eq = component.component_state_eq;
-        view;
-      }
+      { context; identity; view = view; emit = ref emit; }
     ) in
     Lazy.force instance
   )
-
-  let update_and_view instance =
-      let id = instance.identity in
-      let view = Lazy.force instance.view in
-      let render state = Vdom.identify_anonymous id (view state) in
-    fun state ->
-      (* Note: this is effectful because we need to store `state` separate from VDOM :( *)
-      let state = match !(instance.state) with
-        | None -> State.init (render state) state
-        | Some existing -> State.update ~eq:instance.state_eq render existing state
-      in
-      instance.state := Some (state);
-      state.state_view
 
   let supplantable fn =
     let ref = ref None in
@@ -386,9 +490,11 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     )
 
   let bind instance handler = (fun evt ->
-    match !(instance.state) with
-    | Some state -> handler state.state_val evt
-    | None -> Event.unhandled
+    match View.last_state instance.view with
+    | Some state -> handler state evt
+    | None -> raise (Assertion_error
+      ("bound event handler called on instance (id=" ^ (Vdom.Identity.to_string instance.identity) ^ ") with no state")
+    )
   )
 
   let embed_child_view (type child_message) (type message) (type state)
@@ -412,13 +518,16 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
       ~identity:(gen_identity id)
       component
     ) in
+
+    (* no point skipping render, child instance will do that already *)
+    let view = View.init ~skip:View.never (
+      Vdom.identify_anonymous child.identity % (embed_child_view message (view child))
+    ) in
     {
       context = child.context;
       emit = ref (emit instance);
       identity = child.identity;
-      state_eq = child.state_eq;
-      state = ref None;
-      view = Lazy.from_val (embed_child_view message (Lazy.force child.view));
+      view = view;
     }
 
   let child (type child_message) (type message) (type child_state) (type state)
@@ -428,8 +537,9 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (instance:(state, message) instance)
     : child_state -> message Html.html
   =
+    Log.warn(fun m->m"child invoked on instance");
     let child = child_instance ~message ?id component instance in
-    fun state -> update_and_view child state
+    view child
 
 
   (* default implementation: just use a list *)
@@ -451,7 +561,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
             let child: (child_state,message) instance = (child_instance
               ~message ~id component instance
             ) in
-            update_and_view child
+            view child
           ) in
           child_view state
         )
@@ -508,7 +618,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     tasks |> Option.may (Tasks.attach instance);
 
     async instance (
-      let view_fn = update_and_view instance in
+      let view_fn = view instance in
       let open Lwt in
 
       let rec apply_updates stream state dom_state =
