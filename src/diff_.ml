@@ -639,7 +639,7 @@ module Make(Hooks:DOM_HOOKS) = struct
       ({ e_name = replacement_name;  e_attrs = replacement_attrs;  e_children = replacement_children  } as replacement)
       target
     ->
-    Log.debug (fun m -> m "updade_element %s -> %s"
+    Log.debug (fun m -> m "update_element %s -> %s"
       (string_of_element existing)
       (string_of_element replacement));
     if existing_name <> replacement_name then
