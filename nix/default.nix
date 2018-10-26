@@ -3,7 +3,8 @@ with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
 	opam-installer = callPackage ./opam-installer.nix { inherit opam2nix; };
-	src = if lib.isStorePath ../.
+	isStorePath = x: lib.isStorePath (builtins.toString x); # workaround https://github.com/NixOS/nixpkgs/issues/48743
+	src = if isStorePath ../.
 		then ../.
 		else (nix-update-source.fetch ./src.json).src;
 in
