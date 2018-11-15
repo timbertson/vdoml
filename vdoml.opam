@@ -5,6 +5,7 @@ maintainer: "tim@gfxmonk.net"
 depends: [
   "logs"
   "lwt"
+  "lwt_ppx"
   "js_of_ocaml"
   "js_of_ocaml-ppx"
   "js_of_ocaml-lwt"

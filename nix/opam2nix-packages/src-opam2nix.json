@@ -1,0 +1,18 @@
+{
+  "fetch": {
+    "args": {
+      "owner": "timbertson",
+      "repo": "opam2nix",
+      "rev": "version-0.4.6",
+      "sha256": "1xza4snsl2vas0gmxpbffshmyrzrp4z72b1hmxl60ylska84b837"
+    },
+    "fn": "fetchFromGitHub",
+    "rev": "version-0.4.6",
+    "version": "0.4.6"
+  },
+  "localRepo": "..",
+  "owner": "timbertson",
+  "repo": "opam2nix",
+  "rev": "version-{version}",
+  "type": "fetchFromGitHub"
+}

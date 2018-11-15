@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {}, opam2nix ? pkgs.callPackage ./opam2nix-packages.nix {}, ocamlAttr ? "ocaml-ng.ocamlPackages_4_05.ocaml" }:
+{ pkgs ? import <nixpkgs> {}, opam2nix ? pkgs.callPackage ./opam2nix-packages {}, ocamlAttr ? "ocaml-ng.ocamlPackages_4_06.ocaml" }:
 with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
