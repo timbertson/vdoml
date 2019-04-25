@@ -1,3 +1,4 @@
+open Js_of_ocaml
 open Util_
 open Event_types_
 module Event = struct

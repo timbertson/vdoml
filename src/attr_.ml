@@ -1,3 +1,4 @@
+open Js_of_ocaml
 open Util_
 
 module AttrKey = struct

@@ -1,4 +1,5 @@
 (** API for creating HTML structures *)
+open Js_of_ocaml
 
 type 'msg html = 'msg Vdom_.Vdom.html
 type 'msg attr = 'msg Attr_.Attr.optional

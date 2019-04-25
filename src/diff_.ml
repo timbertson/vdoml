@@ -1,3 +1,4 @@
+open Js_of_ocaml
 open Log_
 open Vdom_
 open Attr_

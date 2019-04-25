@@ -1,3 +1,4 @@
+open Js_of_ocaml
 open Attr_
 open Event_
 open Util_

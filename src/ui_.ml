@@ -1,9 +1,9 @@
+open Js_of_ocaml
+open Js_of_ocaml_lwt
 open Log_
 open Vdom_
-open Attr_
 open Ui_main_
 open Util_
-open Event_chain_
 
 (* View module hides internals of `view` function, ensuring
  * all view invocations are cached *)
@@ -35,7 +35,7 @@ end = struct
     skip: 'state -> 'state -> bool;
   }
 
-  let never a b = false
+  let never _ _ = false
 
   let init ~skip view = { view; skip; current = None; }
 
@@ -254,7 +254,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
         | Some "info" -> Some Info
         | Some "warn" -> Some Warning
         | Some "error" -> Some Error
-        | other -> None
+        | _ -> None
       )
     )
   )
@@ -551,7 +551,6 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
     (component:(child_state, child_message) component)
     (instance:(state, message) instance)
   =
-    let open Vdom in
     let cache = ChildCache.init () in
     fun state ->
       ChildCache.use cache (fun get_or_create ->
@@ -660,7 +659,7 @@ module Make(Hooks:Diff_.DOM_HOOKS) = struct
             (fun () -> raise (Assertion_error ("Element with id " ^ id ^ " not found")))
       )
     in
-    let instance, main = render ?tasks component (get_root ()) in
+    let _instance, main = render ?tasks component (get_root ()) in
     Ui_main.wait main
 
   let abort instance = Ui_main.cancel instance.context

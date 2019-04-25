@@ -1,3 +1,4 @@
+open Js_of_ocaml
 type response = Event_types_.response
 type 'msg result = 'msg Event_types_.result
 
