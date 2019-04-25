@@ -1,4 +1,3 @@
-open Util_
 (* The path of an event is complex in vdoml. A traversal of VDom nodes
  * requires tracking not just content, but the accumulation
  * of Conversion and Observer psuedo-nodes.

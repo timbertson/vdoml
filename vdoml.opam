@@ -11,7 +11,7 @@ depends: [
   "js_of_ocaml-lwt"
   "ocamlfind" {build}
   "conf-python-2-7" {build}
-  "jbuilder" {build}
+  "dune" {build}
   "odoc" {build}
   "ppx_inline_test" {test}
   "ppx_assert" {test}
@@ -20,5 +20,5 @@ depends: [
 conflicts: [
   "base-no-ppx"
 ]
-build: [ "jbuilder" "build" "vdoml.install" ]
+build: [ "dune" "build" "-p" name "-j" jobs ]
 build-test: [ "tools/bin/gup" "test/all" ]
