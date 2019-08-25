@@ -1,3 +1,0 @@
-#!bash -eu
-src="$HOME/dev/ocaml/opam2nix-packages/nix/release"
-cp -a "$src" "$1"
