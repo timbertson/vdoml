@@ -1,0 +1,43 @@
+{
+  "sources": {
+    "nix-wrangle": {
+      "fetch": {
+        "owner": "timbertson",
+        "repo": "nix-wrangle",
+        "rev": "1583199d2c4ff5533780e48f483488b6bef2f238",
+        "sha256": "1xb87hcqpc60pjjfjnk10n1clrnzl9z8xjzrjk9h5dgkmih7x5gb"
+      },
+      "nix": "default.nix",
+      "owner": "timbertson",
+      "ref": "v1",
+      "repo": "nix-wrangle",
+      "type": "github"
+    },
+    "opam2nix": {
+      "fetch": {
+        "owner": "timbertson",
+        "repo": "opam2nix-packages",
+        "rev": "df837d8d7d19b8dc08ecf06ccfbe9a7fafa94d38",
+        "sha256": "16pmmmcsnlvbv2w8xqqfdfmd39a0mxzavy1k4i3czfic4yksswk8"
+      },
+      "nix": "nix/",
+      "owner": "timbertson",
+      "ref": "master",
+      "repo": "opam2nix-packages",
+      "type": "github"
+    },
+    "self": {
+      "fetch": {
+        "ref": "HEAD",
+        "relativePath": "."
+      },
+      "nix": "default.nix",
+      "ref": "HEAD",
+      "relativePath": ".",
+      "type": "git-local"
+    }
+  },
+  "wrangle": {
+    "apiversion": 1
+  }
+}
