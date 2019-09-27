@@ -1,2 +1,2 @@
 #!bash -eu
-jbuilder build @install
+dune build @install

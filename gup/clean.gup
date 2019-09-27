@@ -1,2 +1,2 @@
 #!bash -eu
-jbuilder clean
+dune clean

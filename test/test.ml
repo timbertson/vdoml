@@ -13,7 +13,7 @@ let () =
   Test_diff.init ();
   Test_ui.init ();
 
-  Base.Random whinges if you use random numbers in tests. I don't know who is causing it, and I don't care
+  (* Base.Random whinges if you use random numbers in tests. I don't know who is causing it, and I don't care *)
   Base.Random.set_state (Base.Random.State.make_self_init ~allow_in_tests:true ());
 
   let open Ppx_inline_test_lib in

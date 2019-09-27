@@ -113,7 +113,7 @@ module Controls = struct
       text (" " ^ suffix ^ " left");
     ]
 
-  let filters instance =
+  let filters _instance =
     let open Visibility in
     let set_visibility target =
       let onclick = Html.emitter (Msg.Set_visibility target) in
@@ -138,7 +138,7 @@ module Controls = struct
     ul ~a:[ a_class "filters" ] (visibility_buttons visibility)
   )
 
-  let clear_completed instance =
+  let clear_completed _instance =
     function
       | 0 ->
         Log.info (fun m -> m "completed: 0");
@@ -238,11 +238,11 @@ module App = struct
       Option.filter (fun evt -> evt##.keyCode = 13)
 
     let when_return_key fn evt = match return_key_event evt with
-      | Some x -> fn evt
+      | Some _ -> fn evt
       | None -> Event.unhandled
 
     (* view for the top input (new task entry) *)
-    let view_new_task instance =
+    let view_new_task _instance =
       let onchange = handler (fun evt ->
         Event.input_contents evt |> Option.map (fun text ->
           Log.info(fun m -> m "input changed to: %s" text);
@@ -269,7 +269,6 @@ module App = struct
       let open Html in
       let open Msg in
       let open Entry in
-      let open Ui in
       let cancel_editing = Ui.bind instance (fun entry _event ->
         Event.handle (Modify (entry.id, Editing false))
       ) in

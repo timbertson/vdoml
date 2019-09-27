@@ -6,7 +6,7 @@ directories = filter(os.path.isdir, directories)
 directories = filter(lambda p: p[0] not in ['.','_'], directories)
 
 def build(paths):
-	cmd = ['jbuilder', 'build'] + list(paths)
+	cmd = ['dune', 'build'] + list(paths)
 	if os.environ.get('GUP_XTRACE', '0') == '1':
 		print(' + ' + ' '.join(cmd))
 	proc = subprocess.Popen(cmd)

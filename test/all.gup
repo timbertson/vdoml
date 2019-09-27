@@ -1,4 +1,4 @@
 #!bash -eu
 gup --always
-jbuilder build test.bc.js
+dune build test.bc.js
 ./run

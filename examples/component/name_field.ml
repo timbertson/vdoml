@@ -5,7 +5,7 @@ type message = string
 
 let update _ newContent = newContent
 
-let view (instance: (model, message) Ui.instance) : model -> message Html.html =
+let view (_instance: (model, message) Ui.instance) : model -> message Html.html =
 	let oninput event =
 		let open Option in
 		Event.input_contents event
