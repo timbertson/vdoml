@@ -16,14 +16,14 @@
     "opam2nix": {
       "fetch": {
         "owner": "timbertson",
-        "repo": "opam2nix-packages",
-        "rev": "df837d8d7d19b8dc08ecf06ccfbe9a7fafa94d38",
-        "sha256": "16pmmmcsnlvbv2w8xqqfdfmd39a0mxzavy1k4i3czfic4yksswk8"
+        "repo": "opam2nix",
+        "rev": "2aafbb421d2b35c228bd964cb5e0b69811cb56e8",
+        "sha256": "0ds42inj33blh3zsnyx4z3k985asdijh6b46jiad3qb8mcxxfz9s"
       },
       "nix": "nix/",
       "owner": "timbertson",
-      "ref": "master",
-      "repo": "opam2nix-packages",
+      "ref": "v1",
+      "repo": "opam2nix",
       "type": "github"
     },
     "self": {
