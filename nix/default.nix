@@ -10,7 +10,7 @@ let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
 	opamPackages = opam2nix.build {
 		src = self;
-		deps = ../opam-packages.nix;
+		selection = ./opam-selection.nix;
 		ocaml = ocaml-ng.ocamlPackages_4_08.ocaml;
 	};
 in
@@ -20,8 +20,5 @@ in
 	shell = with opamPackages; vdoml.overrideAttrs (o: {
 		buildInputs = (o.buildInputs or [])
 			++ [ ppx_inline_test sexplib ppx_assert ];
-		shellHook = ''
-			export OCAMLPATH="$OCAMLPATH:$PWD/lib"
-		'';
 	});
 }
