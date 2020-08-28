@@ -1,3 +1,4 @@
+open Js_of_ocaml
 include Sexplib.Conv
 module Init = struct
 	let init () = ()
@@ -35,5 +36,5 @@ let rec compare_list : 'a. ('a -> 'a -> int) -> 'a list -> 'a list -> int = (
 
 type 'a compare_fn = 'a -> 'a -> int
 
-let compare_bool : bool compare_fn = Pervasives.compare
-let compare_string : string compare_fn = Pervasives.compare
+let compare_bool : bool compare_fn = Stdlib.compare
+let compare_string : string compare_fn = Stdlib.compare

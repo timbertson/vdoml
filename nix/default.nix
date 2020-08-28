@@ -2,7 +2,6 @@
 	pkgs ? import <nixpkgs> {},
 	opam2nix,
 	ocamlAttr ? "ocaml-ng.ocamlPackages_4_06.ocaml",
-	nix-wrangle,
 	self,
 }:
 with pkgs;

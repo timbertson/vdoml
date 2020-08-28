@@ -3,21 +3,21 @@
 (executable
  (name test)
  (libraries
-  ; vdoml
+  vdoml
   ; logs
   ; logs.browser
-  ; sexplib
+  sexplib
   ; XXX ppx_inline_test breaks it!
   ; ppx_inline_test
   ppx_inline_test.runtime-lib
   ; ppx_assert
   ; ppx_compare.runtime-lib
   ; lwt.ppx
-  ; js_of_ocaml
+  js_of_ocaml
   js_of_ocaml.weak
   ; js_of_ocaml-ppx
   )
- (modules test)
+;  (modules test)
  ; (preprocess (pps (
  ; 	js_of_ocaml.ppx
  ; 	; ppx_assert

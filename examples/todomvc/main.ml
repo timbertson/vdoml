@@ -64,7 +64,7 @@ module Visibility = struct
     | `Completed
   ]
 
-  let eq : t -> t -> bool = Pervasives.(=)
+  let eq : t -> t -> bool = Stdlib.(=)
 
   let all_visibilities : t list = [ `All; `Active; `Completed ]
 

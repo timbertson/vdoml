@@ -6,4 +6,4 @@
  (libraries logs logs.browser js_of_ocaml js_of_ocaml-ppx js_of_ocaml-lwt)
  (flags :standard -warn-error -4-6-7-9-27-29-32..39-41..42-44-45-48-50)
  (preprocess
-  (pps lwt_ppx js_of_ocaml.ppx)))
+  (pps lwt_ppx js_of_ocaml-ppx)))

@@ -17,10 +17,10 @@
       "fetch": {
         "owner": "timbertson",
         "repo": "opam2nix",
-        "rev": "412f1cb54dc4c04aafd5f7151ed15c135ee80436",
-        "sha256": "0bpfhpmp63fzwiak39n0n0hgd2lmywbsinqbfavdlvk6gcpdl3cs"
+        "rev": "adb929f90e70d807df042b58e2693ccf8994039f",
+        "sha256": "1kxvynxkdkvgcmng5ii3kfwhr4s2z7rcj3bcq5x5mf9wqdgwdzl6"
       },
-      "nix": "nix/",
+      "nix": "default.nix",
       "owner": "timbertson",
       "ref": "v1",
       "repo": "opam2nix",

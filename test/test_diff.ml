@@ -66,7 +66,7 @@ module Diff_util = struct
 
 	let sexp_of_raw_node node =
 		Atom (string_of_raw node)
-	let compare_raw_node = Pervasives.compare
+	let compare_raw_node = Stdlib.compare
 
 	let sexp_of_identity = function
 		| User_tag (`String s) -> Atom s
@@ -78,7 +78,7 @@ module Diff_util = struct
 			| Anonymous node -> List [ Atom "Anonymous"; sexp_of_raw_node node ]
 			| Identified (id, node) -> List [ Atom "Identified"; sexp_of_identity id; sexp_of_raw_node node ]
 
-	let compare_node = Pervasives.compare
+	let compare_node = Stdlib.compare
 
 	let sexp_of_node_mutation =
 		let s x = Atom x and l x = List x in
@@ -90,7 +90,7 @@ module Diff_util = struct
 
 	let string_of_node_list nodes = "["^( String.concat ", " (List.map string_of_node nodes) )^"]"
 	let sexp_of_node_mutations m = Sexp.List (List.map sexp_of_node_mutation m)
-	let compare_node_mutations = Pervasives.compare
+	let compare_node_mutations = Stdlib.compare
 
 	let assert_mutations ~existing ~replacements expected =
 		let mutations = ref [] in

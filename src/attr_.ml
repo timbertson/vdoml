@@ -3,7 +3,7 @@ open Util_
 
 module AttrKey = struct
   type t = Property_name of string | Attribute_name of string
-  let compare : t -> t -> int = Pervasives.compare
+  let compare : t -> t -> int = Stdlib.compare
 end
 module AttrMap = Map.Make(AttrKey)
 

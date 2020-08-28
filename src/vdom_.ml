@@ -13,7 +13,7 @@ module Vdom = struct
 
   module Identity = struct
     type t = identity
-    let compare = Pervasives.compare
+    let compare = Stdlib.compare
     let eq : t -> t -> bool = (=)
     let to_string = function
       | User_tag tag -> "user:" ^ (match tag with
