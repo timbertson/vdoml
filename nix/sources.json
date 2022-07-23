@@ -1,0 +1,14 @@
+{
+    "opam2nix": {
+        "branch": "v1",
+        "description": "Generate nix expressions from opam packages",
+        "homepage": null,
+        "owner": "timbertson",
+        "repo": "opam2nix",
+        "rev": "61db9c0e6917b07c4a3f64c63d09e99eb9159101",
+        "sha256": "09r1wds27y688lwrb5qsrqfsi9ffn67v5lcfyshzlibkd6qlsbq7",
+        "type": "tarball",
+        "url": "https://github.com/timbertson/opam2nix/archive/61db9c0e6917b07c4a3f64c63d09e99eb9159101.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}

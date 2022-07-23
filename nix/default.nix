@@ -1,14 +1,14 @@
+let sources = import ./sources.nix {}; in
 {
 	pkgs ? import <nixpkgs> {},
-	opam2nix,
+	opam2nix ? pkgs.callPackage sources.opam2nix {},
 	ocamlAttr ? "ocaml-ng.ocamlPackages_4_06.ocaml",
-	self,
 }:
 with pkgs;
 let
 	chompFile = file: lib.removeSuffix "\n" (builtins.readFile file);
 	opamPackages = opam2nix.build {
-		src = self;
+		src = sources.local { url = ../.; };
 		selection = ./opam-selection.nix;
 		ocaml = ocaml-ng.ocamlPackages_4_08.ocaml;
 	};
