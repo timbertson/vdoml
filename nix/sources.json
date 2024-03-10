@@ -5,10 +5,10 @@
         "homepage": null,
         "owner": "timbertson",
         "repo": "opam2nix",
-        "rev": "61db9c0e6917b07c4a3f64c63d09e99eb9159101",
-        "sha256": "09r1wds27y688lwrb5qsrqfsi9ffn67v5lcfyshzlibkd6qlsbq7",
+        "rev": "d928afb09578c9e6036029c6f75c7662fb6b4f98",
+        "sha256": "05dhf49khsn28cgh0bsxyn7925h43hmjaqr0hyvw8v03vw0mkllb",
         "type": "tarball",
-        "url": "https://github.com/timbertson/opam2nix/archive/61db9c0e6917b07c4a3f64c63d09e99eb9159101.tar.gz",
+        "url": "https://github.com/timbertson/opam2nix/archive/d928afb09578c9e6036029c6f75c7662fb6b4f98.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
