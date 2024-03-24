@@ -2,7 +2,6 @@ let sources = import ./sources.nix {}; in
 {
 	pkgs ? import <nixpkgs> {},
 	opam2nix ? pkgs.callPackage sources.opam2nix {},
-	ocamlAttr ? "ocaml-ng.ocamlPackages_4_06.ocaml",
 }:
 with pkgs;
 let
@@ -10,7 +9,15 @@ let
 	opamPackages = opam2nix.build {
 		src = sources.local { url = ../.; };
 		selection = ./opam-selection.nix;
-		ocaml = ocaml-ng.ocamlPackages_4_08.ocaml;
+		ocaml = ocaml-ng.ocamlPackages_4_14.ocaml;
+		override = {}: {
+			dune = base: base.overrideAttrs (base: {
+				buildInputs = (base.buildInputs or []) ++
+				(lib.optionals stdenv.isDarwin (with darwin.apple_sdk;
+					[ frameworks.CoreServices ]
+				));
+			});
+		};
 	};
 	result = {
 		inherit opam2nix;

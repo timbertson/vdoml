@@ -3,4 +3,4 @@ set -o pipefail
 gup -u ../vdoml.opam
 opam2nix="$(nix-build -A opam2nix --no-out-link ../)"
 echo "$opam2nix"
-"$opam2nix/bin/opam2nix" resolve --dest "$1" --ocaml-version 4.08.1 ../vdoml.opam ppx_inline_test sexplib ppx_assert
+"$opam2nix/bin/opam2nix" resolve --dest "$1" --ocaml-version 4.14.1 ../vdoml.opam ppx_inline_test sexplib ppx_assert
